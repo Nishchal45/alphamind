@@ -1,0 +1,89 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+*.egg
+dist/
+build/
+wheels/
+pip-wheel-metadata/
+.installed.cfg
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# uv
+.uv/
+
+# Testing
+.pytest_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+.tox/
+.nox/
+
+# Type checkers
+.mypy_cache/
+.pyre/
+.pytype/
+
+# Linters / formatters
+.ruff_cache/
+
+# IDEs and editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*.swn
+*~
+.DS_Store
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Logs
+logs/
+*.log
+
+# Local development data
+data/
+cache/
+tmp/
+.cache/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# Model artefacts
+models/
+checkpoints/
+*.ckpt
+*.safetensors
+*.bin
+*.pt
+*.pth
+
+# Node (for future frontend)
+node_modules/
+.next/
+.nuxt/
+.parcel-cache/
+
+# OS
+Thumbs.db
+
+# Local assistant context (not for source control)
+CLAUDE.md
+.claude/
