@@ -1,0 +1,12 @@
+# Default owners for the whole repository.
+* @Nishchal45
+
+# Documentation and decision records.
+/docs/           @Nishchal45
+*.md             @Nishchal45
+
+# Build, tooling, and CI.
+/.github/        @Nishchal45
+/infra/          @Nishchal45
+/Makefile        @Nishchal45
+/pyproject.toml  @Nishchal45
