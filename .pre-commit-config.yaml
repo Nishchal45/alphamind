@@ -24,13 +24,18 @@ repos:
         args: [--fix, --exit-non-zero-on-fix]
       - id: ruff-format
 
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.13.0
+  # Mypy runs against the project's actual virtualenv via uv so that type
+  # stubs for runtime dependencies (sqlalchemy, pydantic, etc.) are picked up
+  # automatically instead of needing to be mirrored in additional_dependencies.
+  - repo: local
     hooks:
       - id: mypy
-        additional_dependencies: []
+        name: mypy (uv run)
+        entry: uv run mypy --config-file=pyproject.toml
+        language: system
+        types_or: [python, pyi]
         pass_filenames: false
-        args: [--config-file=pyproject.toml, src, tests]
+        args: [src, tests]
 
   - repo: https://github.com/compilerla/conventional-pre-commit
     rev: v3.6.0
