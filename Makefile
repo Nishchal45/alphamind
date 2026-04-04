@@ -1,6 +1,7 @@
 .DEFAULT_GOAL := help
 .PHONY: help install dev lint format typecheck test test-integration test-cov test-all \
-	ci clean compose-up compose-down compose-logs
+	ci clean compose-up compose-down compose-logs \
+	migrate migration downgrade db-reset healthcheck
 
 UV := uv
 
@@ -55,3 +56,22 @@ compose-down: ## Stop local services
 
 compose-logs: ## Tail local service logs
 	docker compose -f infra/docker-compose.yml logs -f
+
+migrate: ## Apply database migrations to head
+	$(UV) run alembic upgrade head
+
+migration: ## Generate a new migration (M="short message")
+	@if [ -z "$(M)" ]; then echo "usage: make migration M=\"add foo table\""; exit 2; fi
+	$(UV) run alembic revision --autogenerate -m "$(M)"
+
+downgrade: ## Roll back the most recent migration
+	$(UV) run alembic downgrade -1
+
+db-reset: ## Drop and recreate the postgres volume (destructive)
+	docker compose -f infra/docker-compose.yml down -v
+	docker compose -f infra/docker-compose.yml up -d
+	@sleep 3
+	$(MAKE) migrate
+
+healthcheck: ## Verify postgres, pgvector, and redis are reachable
+	$(UV) run python scripts/healthcheck.py
