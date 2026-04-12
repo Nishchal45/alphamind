@@ -56,19 +56,20 @@ htmlcov/
 logs/
 *.log
 
-# Local development data
-data/
-cache/
-tmp/
-.cache/
+# Local development data (root-relative so the Python package isn't shadowed)
+/data/
+/cache/
+/tmp/
+/.cache/
 
 # Jupyter
 .ipynb_checkpoints/
-*.ipynb
+/notebooks/*.ipynb
 
-# Model artefacts
-models/
-checkpoints/
+# Trained model artefacts — weights live at the repo root, not inside the
+# Python package whose submodule is also called `models`.
+/models/
+/checkpoints/
 *.ckpt
 *.safetensors
 *.bin
