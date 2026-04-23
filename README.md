@@ -41,7 +41,9 @@ See [`docs/architecture.md`](docs/architecture.md) for the full design and [`doc
 ```bash
 make install       # install dependencies and pre-commit hooks
 make compose-up    # start postgres and redis
-make test          # run the test suite
+make migrate       # apply database migrations
+make healthcheck   # verify services are reachable
+make test          # run the unit test suite
 ```
 
 ### Common commands
@@ -53,9 +55,23 @@ make test          # run the test suite
 | `make typecheck` | Run mypy in strict mode |
 | `make test` | Run unit tests |
 | `make test-cov` | Run tests with coverage report |
+| `make migrate` | Apply Alembic migrations to head |
+| `make migration M="..."` | Autogenerate a new migration |
+| `make healthcheck` | Verify Postgres, pgvector, and Redis |
 | `make ci` | Run the full local CI pipeline |
 
 See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the full contribution workflow.
+
+### Ingesting SEC filings
+
+Once services are up and migrations are applied, pull recent filings for a few
+tickers:
+
+```bash
+uv run python scripts/ingest_edgar.py --ticker AAPL MSFT NVDA
+```
+
+Full operational details live in [`docs/runbooks/ingest-edgar.md`](docs/runbooks/ingest-edgar.md).
 
 ## Disclaimer
 
