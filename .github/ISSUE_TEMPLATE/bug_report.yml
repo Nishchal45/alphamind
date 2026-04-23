@@ -1,0 +1,69 @@
+name: Bug report
+description: Report a defect in AlphaMind
+title: "bug: <short summary>"
+labels: [bug, triage]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug. Please fill out the sections below so the defect can be reproduced quickly.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: A clear, concise description of the defect.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Numbered steps that reliably reproduce the behaviour.
+      placeholder: |
+        1. Run `make compose-up`
+        2. POST to `/analyze` with payload ...
+        3. Observe response
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behaviour
+      description: Include logs, tracebacks, or screenshots if available.
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: AlphaMind version or commit SHA
+    validations:
+      required: true
+
+  - type: dropdown
+    id: environment
+    attributes:
+      label: Environment
+      options:
+        - Local development
+        - CI
+        - Staging
+        - Production
+    validations:
+      required: true
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Additional context
+      description: Anything else that might help — OS, Python version, relevant config.
