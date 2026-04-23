@@ -1,45 +1,45 @@
 # 3. SEC EDGAR ingestion design
 
 - **Status**: accepted
-- **Date**: 2026-04-22
+- **Date**: 2026-04-19
 
 ## Context
 
-EDGAR is a free, public source of structured filings data. It is also the slowest-moving dependency in AlphaMind: any correctness bug in ingestion will silently contaminate retrieval, agent reasoning, and backtest results.
+EDGAR is free, structured, and the slowest-moving dependency in the project. It's also the one place where a silent correctness bug will contaminate retrieval, agent output, and every backtest downstream — so ingestion has to get a few things exactly right on the first try.
 
-Three properties the ingestion layer must guarantee:
+Three constraints the ingestion layer has to meet:
 
-1. **Fair-access compliance.** SEC rejects requests without an identifying `User-Agent` and rate-limits clients past ~10 requests per second. Exceeding the ceiling risks an IP ban.
-2. **Idempotency.** Backfills, re-runs, and incremental updates must converge to the same schema state. Re-ingesting AAPL on Monday after a Sunday run must not duplicate rows.
-3. **Resilience.** Transient 429 / 5xx responses are common during market hours and earnings seasons. A single blip must not abort a batch job.
+1. **Fair-access compliance.** SEC rejects requests without an identifying `User-Agent` and rate-limits past ~10 requests per second. Going over the ceiling risks an IP ban, which would be annoying to unwind.
+2. **Idempotency.** Backfills, re-runs, and incremental pulls must all converge to the same schema state. Re-running AAPL on Monday after a Sunday run can't create duplicates.
+3. **Resilience.** Transient 429s and 5xxs are routine — more so during market hours and earnings season. A single blip can't abort a batch.
 
 ## Decision
 
-Build a single async adapter with three layers:
+One async adapter, three layers, each with a single job:
 
 | Layer | Module | Responsibility |
 | --- | --- | --- |
-| Transport | `ingestion.edgar.client` | `User-Agent`, token-bucket rate limit (default 8 req/s), tenacity retries on 429/5xx and transport errors. |
-| Parsing | `ingestion.edgar.schemas` | Pydantic models for submissions and ticker map; `iter_filings()` zips EDGAR's parallel arrays into record form. |
-| Persistence | `ingestion.edgar.service` | Postgres `INSERT ... ON CONFLICT DO UPDATE` keyed on `cik` and `accession_number`, all under a single `session_scope()` transaction. |
+| Transport | `ingestion.edgar.client` | `User-Agent`, token-bucket rate limit (default 8 req/s, under the ceiling), tenacity retries on 429/5xx and transport errors. |
+| Parsing | `ingestion.edgar.schemas` | Pydantic models for submissions and ticker map. `iter_filings()` zips EDGAR's parallel arrays into record form. |
+| Persistence | `ingestion.edgar.service` | Postgres `INSERT ... ON CONFLICT DO UPDATE` keyed on `cik` and `accession_number`, all under one `session_scope()` transaction. |
 
-The CLI entrypoint (`scripts/ingest_edgar.py`) wraps all three, catches per-item exceptions, and prints a terminal summary. CI and operators treat a non-zero exit as "at least one item failed; check logs."
+The CLI (`scripts/ingest_edgar.py`) wraps the three layers, catches per-item exceptions so one bad ticker doesn't kill the batch, and prints a summary. A non-zero exit means "at least one item failed — check logs."
 
-### Why token-bucket, not a simple semaphore
+### Token bucket, not semaphore
 
-A semaphore of size 10 allows 10 requests to begin simultaneously, which briefly exceeds the ceiling from SEC's perspective because all 10 land inside the same second. The token bucket amortises the budget across the window and is provably correct under `asyncio.gather`, which is exercised in `test_concurrent_requests_stay_within_rate`.
+A semaphore of size 10 lets 10 requests start simultaneously, which from SEC's side is 10 requests in a single second — over the ceiling. A token bucket amortises the budget across the window. Under `asyncio.gather` it's provably correct and there's a test (`test_concurrent_requests_stay_within_rate`) that exercises exactly that scenario.
 
-### Why `ON CONFLICT DO UPDATE`, not read-then-write
+### `ON CONFLICT DO UPDATE`, not read-then-write
 
-Read-then-write would require a lock or an `INSERT ... RETURNING` dance to avoid race conditions under concurrent ingestion. The single statement is atomic at the database, needs no application-side lock, and produces fewer round trips.
+Read-then-write needs an explicit lock or an `INSERT ... RETURNING` dance to avoid races under concurrent ingestion. One atomic upsert statement is fewer round trips and needs no application-side coordination. It's also shorter code.
 
-### Why we store metadata only (no document bodies) in this phase
+### Why metadata only (for now)
 
-Filing bodies range from a few kilobytes (an 8-K) to tens of megabytes (a 10-K with exhibits). Storing them inline in Postgres would bloat page caches and make schema migrations painful. The retrieval layer (Phase 2) will store chunked passages with stable identifiers back to EDGAR's canonical document URL, and the raw body will live in object storage.
+Filing bodies range from a few kilobytes for an 8-K to tens of megabytes for a 10-K with exhibits. Inlining that in Postgres would bloat the page cache and make every schema migration slower. Phase 2 will store chunked passages with stable pointers back to EDGAR's canonical URL, and the raw body will live in object storage.
 
 ## Consequences
 
-- Ingestion can run on cron and in overnight batch jobs safely; the rate limit is a local property, not a coordination problem.
-- Time-aware retrieval (preventing lookahead bias during backtests) is possible because every filing row carries `filing_date`, which is indexed and available as a `WHERE` predicate before any ANN search.
-- Adding new sources (news, earnings transcripts) follows the same three-layer template: a transport module, typed schemas, an upsert service.
-- If SEC ever tightens the rate ceiling or introduces authenticated access, the change is isolated to `client.EdgarClient.__init__`.
+- Ingestion is safe to run on cron. The rate limit is a local property, not a distributed coordination problem.
+- Time-aware retrieval works because every filing row carries `filing_date` (indexed). That's available as a `WHERE` predicate before any ANN search runs.
+- New sources (news, transcripts) follow the same three-layer template: transport, typed schemas, upsert service. Nothing about EDGAR's design is special to EDGAR.
+- If SEC tightens the ceiling or moves to authenticated access, the change is isolated to `client.EdgarClient.__init__`.

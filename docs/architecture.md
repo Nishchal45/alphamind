@@ -1,6 +1,6 @@
 # Architecture
 
-This document summarises the intended architecture of AlphaMind. For the reasoning behind individual decisions, see [`adr/`](adr).
+High-level map of how AlphaMind is put together. For the reasoning behind specific decisions, see [`adr/`](adr).
 
 ## Component overview
 
@@ -47,9 +47,9 @@ This document summarises the intended architecture of AlphaMind. For the reasoni
 - Model routing — a cheap model handles classification and formatting, a frontier model handles synthesis.
 - OpenTelemetry traces spanning retrieval, agent calls, and token accounting.
 
-## Target non-functional properties
+## Things I care about getting right
 
-- **Reproducibility**: given the same inputs and document snapshot, outputs are stable within a defined tolerance.
-- **Auditability**: every claim in an agent's output is linked to retrievable source material.
-- **Cost awareness**: token usage and inference cost are measured per request and budgeted per agent.
-- **Safety**: guardrails inject disclaimers, block jailbreak attempts, and prevent financial-advice framing in responses.
+- **Reproducibility** — same inputs and same document snapshot should produce stable output within a defined tolerance.
+- **Auditability** — every claim in an agent response links back to retrievable source material.
+- **Cost awareness** — token usage and inference cost measured per request, budgeted per agent.
+- **Safety** — disclaimers injected, jailbreak attempts blocked, no financial-advice framing in responses.

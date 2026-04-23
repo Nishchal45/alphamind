@@ -1,34 +1,43 @@
 # 2. Use PostgreSQL with pgvector for documents and embeddings
 
 - **Status**: accepted
-- **Date**: 2026-04-22
+- **Date**: 2026-04-05
 
 ## Context
 
-AlphaMind needs a durable store for three kinds of data:
+AlphaMind needs to store three things:
 
-1. Source documents (SEC filings, news articles, earnings transcripts) with metadata including filer, filing date, and document type.
-2. Chunked passages derived from those documents, each with a stable identifier back to its source span.
-3. Dense vector embeddings of those passages, queried by nearest neighbour at request time.
+1. Source documents (SEC filings, news, earnings transcripts) with their metadata — filer, filing date, form type.
+2. Chunked passages from those documents, each with a stable pointer back to its source span.
+3. Dense vector embeddings of those passages, queried by nearest-neighbour at request time.
 
-The retrieval layer is hybrid — semantic (dense) plus lexical (BM25) — and requires joins between chunks, their embeddings, and the source-document metadata (filing date, ticker) so that time-aware filters can be applied before any similarity search runs.
+Retrieval is hybrid — dense + BM25 — and needs to filter by metadata (filing date, ticker) *before* similarity search runs. Lookahead bias during backtests is the single biggest correctness risk in the project. A filing dated 2024-02-01 must never be retrievable when the analysis horizon is 2024-01-15. That constraint decides the storage choice.
 
-We evaluated three storage options:
+## Options considered
 
-| Option | Pros | Cons |
-| --- | --- | --- |
-| **PostgreSQL + pgvector** | Single engine for documents, metadata, and vectors. Transactional. Rich SQL for filtering before ANN. Mature tooling (Alembic, SQLAlchemy). Free and self-hostable. | ANN recall at very large scale requires tuning (HNSW/IVFFlat). Not as fast at extreme vector counts as dedicated engines. |
-| **Dedicated vector DB (Qdrant / Weaviate / Pinecone)** | Best-in-class ANN latency and recall. Hybrid search primitives built in. | Second system to run, back up, and secure. Metadata joins require pulling data back through the app. Extra network hop on every query. Pinecone adds cost and vendor lock-in. |
-| **Full-text only (BM25, no vectors)** | Simplest; fits natively in Postgres. | Misses semantic matches that are critical for financial-prose retrieval. Rejected — we need hybrid retrieval. |
+| Option | Verdict |
+| --- | --- |
+| **PostgreSQL + pgvector** | Chosen. |
+| **Dedicated vector DB (Qdrant / Weaviate / Pinecone)** | Rejected for this phase. |
+| **BM25 only, no vectors** | Rejected — misses paraphrase matches that are routine in financial prose. |
 
 ## Decision
 
-Use PostgreSQL 16 with the `pgvector` extension as the single source of truth for source documents, chunks, and embeddings. Hybrid retrieval is implemented by composing SQL-driven filters, `tsvector` lexical scoring, and `pgvector` ANN in one query plan, with a cross-encoder rerank executed in application code over the top-k candidates.
+PostgreSQL 16 with the `pgvector` extension, as the single source of truth for documents, chunks, embeddings, and metadata. Hybrid retrieval composes `tsvector` lexical scoring, `pgvector` ANN, and SQL-level metadata filters in one query plan. A cross-encoder rerank happens in application code over the top-k candidates.
+
+### Why not Qdrant
+
+Qdrant is faster at pure ANN and the API is pleasant. But the moment you need to filter by `filing_date <= :horizon`, that predicate lives in a different system than the vector index. You either (a) push metadata into Qdrant's payload and re-implement relational joins as payload filters, or (b) do a two-step query across two systems and hope the candidate set you pulled back is large enough. (a) means duplicating state; (b) means losing the ability to push filters down before ANN. Neither is a trade I want to make on day one of a correctness-critical project.
+
+When vector volume passes ~10M chunks and ANN latency becomes the bottleneck, the vector index can move to a dedicated engine without touching the document store. That's a problem for later.
+
+### Why not BM25 only
+
+Filings use synonym-heavy prose — "inventory write-down", "excess and obsolete reserve", "NRV adjustment" all mean roughly the same thing. Lexical-only retrieval misses the paraphrase. Dense retrieval catches it but ranks boilerplate too high. Hybrid gets both.
 
 ## Consequences
 
-- One operational surface (Postgres) is backed up, monitored, and migrated.
-- Time-aware retrieval is expressible as a `WHERE filing_date <= :horizon` predicate on the same table as the vector index, which directly prevents lookahead bias in backtests.
-- Alembic is the sole migration tool; the baseline migration (`0001_baseline`) enables the `vector` extension so every environment boots pgvector-capable.
-- If ANN throughput becomes a bottleneck past ~10 M chunks, we can move just the vector index to a dedicated engine without touching the document store. That is a later-stage problem.
-- Redis is retained for short-lived caches (embedding results, LLM responses, rate limits) where Postgres durability is unnecessary and a cache miss is cheap.
+- One system (Postgres) to back up, monitor, and migrate.
+- `WHERE filing_date <= :horizon` is a native SQL predicate on the same table as the vector index. Lookahead bias becomes a query-writing problem rather than a coordination problem.
+- Alembic is the sole migration tool. The baseline migration enables `vector` so every environment boots pgvector-capable.
+- Redis stays around for what it's good at: short-lived caches (embeddings, LLM responses, rate-limit counters) where durability is unnecessary and a cache miss is cheap.
