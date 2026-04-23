@@ -17,9 +17,9 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 from alphamind.config import get_settings
 from alphamind.db.base import Base
 
-# Import model modules here so their tables register on Base.metadata.
-# Migrations that autogenerate schema diff will then pick them up.
-# (No models yet — added in Phase 1c.)
+# Importing the models package eagerly registers every ORM class on
+# Base.metadata so that Alembic's autogenerate sees the full schema.
+from alphamind import models  # noqa: F401, E402
 
 config = context.config
 
