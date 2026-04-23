@@ -15,7 +15,14 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Private :: Do Not Upload",
 ]
-dependencies = []
+dependencies = [
+    "sqlalchemy[asyncio]>=2.0",
+    "asyncpg>=0.29",
+    "alembic>=1.14",
+    "pydantic>=2.9",
+    "pydantic-settings>=2.6",
+    "redis>=5.2",
+]
 
 [dependency-groups]
 dev = [
@@ -25,6 +32,7 @@ dev = [
     "pytest-asyncio>=0.24",
     "pytest-cov>=6.0",
     "pre-commit>=4.0",
+    "respx>=0.22",
 ]
 
 [build-system]
