@@ -1,40 +1,42 @@
 # AlphaMind
 
-An agentic equity research platform that performs institutional-grade analysis of public companies by grounding every claim in primary sources — SEC filings, earnings transcripts, and news — and validating its recommendations through rigorous offline backtesting.
+AlphaMind is an agentic research tool for public equities. It reads SEC filings, earnings transcripts, and news, then produces a structured thesis on a company where every claim cites the source it came from.
 
-> Status: early development. See [`CHANGELOG.md`](CHANGELOG.md) for what has shipped.
+It's a personal project — I wanted something that would force me to learn multi-agent orchestration, retrieval at scale, and fine-tuning a small open-source model on financial text — and I got tired of LLM answers that quietly hallucinate a revenue number.
+
+> Status: early development. See [`CHANGELOG.md`](CHANGELOG.md) for what has actually shipped.
 
 ---
 
 ## What it does
 
-AlphaMind answers questions like *"What is the bull and bear case for NVDA heading into Q3 2026?"* by orchestrating a team of specialised LLM agents over a time-aware retrieval layer:
+Given a question like *"What's the bull and bear case for NVDA going into Q3 2026?"*, a small team of specialised agents works the problem in parallel:
 
-- A **router** classifies intent and dispatches to specialists.
-- **Fundamentals**, **sentiment**, **technical**, and **risk** agents work in parallel over filtered document sets.
-- A **synthesizer** merges their outputs into a structured thesis.
-- A **critic** flags unsupported claims, contradictions, and hallucinations before the response reaches the user.
+- A **router** figures out intent.
+- **Fundamentals**, **sentiment**, **technical**, and **risk** agents each work over their own filtered slice of the corpus.
+- A **synthesizer** merges the outputs into a structured thesis with bull and bear sides.
+- A **critic** reads the output back and flags unsupported claims, internal contradictions, and hallucinations before the answer reaches me.
 
-Every claim is traceable to a source document and timestamp. The system enforces a strict information horizon during historical analysis so it cannot accidentally use future information.
+Every claim is linked back to a source document and a timestamp. For historical questions the system refuses to look at anything dated after the as-of date, which is how I'll keep backtests honest.
 
 ## Architecture
 
 - **Ingestion**: SEC EDGAR (10-K / 10-Q / 8-K), earnings transcripts, news feeds, market data.
-- **Retrieval**: hybrid search (semantic embeddings + BM25) with cross-encoder reranking, tuned chunking for financial documents.
-- **Orchestration**: LangGraph multi-agent DAG with typed state and deterministic routing.
-- **Models**: fine-tuned open-source SLM (LoRA / QLoRA) for domain tasks; frontier LLMs for synthesis.
-- **Serving**: FastAPI with async streaming, Redis caching, model routing for cost and latency.
-- **Evaluation**: citation coverage, hallucination rate, and historical backtest against SPY.
+- **Retrieval**: hybrid (dense embeddings + BM25) with cross-encoder reranking and chunking tuned for filings.
+- **Orchestration**: LangGraph DAG with typed state.
+- **Models**: a fine-tuned open-source SLM (LoRA / QLoRA) for the domain-specific tasks; a frontier LLM for final synthesis.
+- **Serving**: FastAPI with async streaming, Redis cache, model routing for cost.
+- **Evaluation**: citation coverage, hallucination rate, and a historical backtest against SPY.
 
-See [`docs/architecture.md`](docs/architecture.md) for the full design and [`docs/adr/`](docs/adr) for recorded architectural decisions.
+Full design in [`docs/architecture.md`](docs/architecture.md). Architectural decisions are in [`docs/adr/`](docs/adr).
 
 ## Development
 
 ### Prerequisites
 
-- Python 3.11 or newer
-- [uv](https://docs.astral.sh/uv/) for dependency management
-- Docker and Docker Compose for local services (Postgres with `pgvector`, Redis)
+- Python 3.11+
+- [uv](https://docs.astral.sh/uv/) for dependencies
+- Docker + Docker Compose for the local Postgres (with `pgvector`) and Redis
 
 ### Setup
 
@@ -48,35 +50,52 @@ make test          # run the unit test suite
 
 ### Common commands
 
-| Command | Description |
+| Command | What it does |
 | --- | --- |
-| `make lint` | Run ruff checks |
+| `make lint` | Ruff checks |
 | `make format` | Auto-format with ruff |
-| `make typecheck` | Run mypy in strict mode |
-| `make test` | Run unit tests |
-| `make test-cov` | Run tests with coverage report |
+| `make typecheck` | mypy, strict |
+| `make test` | Unit tests |
+| `make test-cov` | Tests + coverage |
 | `make migrate` | Apply Alembic migrations to head |
 | `make migration M="..."` | Autogenerate a new migration |
-| `make healthcheck` | Verify Postgres, pgvector, and Redis |
-| `make ci` | Run the full local CI pipeline |
+| `make healthcheck` | Ping Postgres, pgvector, and Redis |
+| `make ci` | Full local CI pipeline |
 
-See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the full contribution workflow.
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the workflow.
 
 ### Ingesting SEC filings
 
-Once services are up and migrations are applied, pull recent filings for a few
-tickers:
+Once services are up and migrations applied, pull recent filings for a few tickers:
 
 ```bash
 uv run python scripts/ingest_edgar.py --ticker AAPL MSFT NVDA
 ```
 
-Full operational details live in [`docs/runbooks/ingest-edgar.md`](docs/runbooks/ingest-edgar.md).
+Example output:
+
+```
+CIK          TICKER     SEEN  WRITTEN  NAME
+0000320193   AAPL         12        5  Apple Inc.
+0000789019   MSFT         14        6  Microsoft Corporation
+0001045810   NVDA         11        4  NVIDIA Corporation
+```
+
+`SEEN` is what EDGAR returned in the recent-filings window; `WRITTEN` is how many passed the form filter and got upserted. Operational details in [`docs/runbooks/ingest-edgar.md`](docs/runbooks/ingest-edgar.md).
+
+## Roadmap
+
+- [x] Phase 1 — repo scaffolding, Postgres + pgvector, SEC EDGAR metadata ingestion
+- [ ] Phase 2 — filing-body ingestion, chunking, embeddings, hybrid retrieval, cross-encoder rerank
+- [ ] Phase 3 — LangGraph agent team (router, specialists, synthesizer, critic)
+- [ ] Phase 4 — fine-tuned SLM on financial text (LoRA / QLoRA)
+- [ ] Phase 5 — FastAPI serving layer with streaming, caching, cost routing
+- [ ] Phase 6 — backtest harness, evaluation set, public result dashboard
 
 ## Disclaimer
 
-AlphaMind is a research and education project. Its output is **not financial advice**. Simulated historical performance does not guarantee future results. Do not trade on its recommendations without independent verification and appropriate risk management.
+This is a research and education project. Output is **not financial advice**. Simulated historical performance is not a prediction of future results. Don't trade on its recommendations without independent verification and proper risk management.
 
 ## License
 
-Released under the [MIT License](LICENSE).
+[MIT](LICENSE).
