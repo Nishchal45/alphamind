@@ -70,8 +70,6 @@ def html_to_text(html: str | bytes) -> str:
     normalised = unicodedata.normalize("NFKC", raw)
 
     # Collapse runs of inline whitespace, then runs of blank lines.
-    lines = (
-        _WHITESPACE_RE.sub(" ", line).strip() for line in normalised.split("\n")
-    )
+    lines = (_WHITESPACE_RE.sub(" ", line).strip() for line in normalised.split("\n"))
     text = "\n".join(line for line in lines if line)
     return _BLANK_LINES_RE.sub("\n\n", text).strip()

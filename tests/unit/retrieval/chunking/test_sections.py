@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from alphamind.retrieval.chunking.sections import detect_sections
+from itertools import pairwise
 
+from alphamind.retrieval.chunking.sections import detect_sections
 
 SAMPLE_10K = """
 PART I
@@ -48,7 +49,7 @@ def test_sections_partition_the_document() -> None:
     # First section starts at 0; last ends at len(text); adjacent ranges meet.
     assert sections[0].start == 0
     assert sections[-1].end == len(SAMPLE_10K)
-    for prev, curr in zip(sections, sections[1:], strict=False):
+    for prev, curr in pairwise(sections):
         assert prev.end == curr.start
 
 

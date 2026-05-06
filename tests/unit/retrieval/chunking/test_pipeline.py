@@ -48,10 +48,7 @@ def test_chunks_carry_section_label_when_detected(
     for chunk in chunks:
         if chunk.section is None:
             continue
-        section_text = text[
-            text.index(chunk.section) : text.index(chunk.section)
-            + len(text)
-        ]
+        section_text = text[text.index(chunk.section) : text.index(chunk.section) + len(text)]
         # Any well-placed chunk's first 20 characters should appear inside
         # the section span.
         assert chunk.text[:20].strip() in section_text

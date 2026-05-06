@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from itertools import pairwise
+
 import pytest
 
 from alphamind.retrieval.chunking.splitter import TokenAwareSplitter, count_tokens
@@ -25,7 +27,7 @@ def test_split_returns_non_empty_spans_with_overlap() -> None:
         assert 1 <= token_count <= 64
 
     # Adjacent spans overlap in character space.
-    for prev, curr in zip(spans, spans[1:], strict=False):
+    for prev, curr in pairwise(spans):
         assert curr[0] < prev[1], "spans must overlap"
 
 

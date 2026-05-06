@@ -45,8 +45,9 @@ def test_collapses_whitespace_and_blank_lines() -> None:
 
 
 def test_normalises_unicode() -> None:
-    # Non-breaking space + smart quote.
-    html = "<p>Apple Inc. “doing well”</p>"
+    # The literal characters are U+00A0 (NBSP), U+201C/201D (smart
+    # quotes); written via \u escapes so the source stays plain ASCII.
+    html = "<p>Apple\u00a0Inc. \u201cdoing well\u201d</p>"
 
     out = html_to_text(html)
 

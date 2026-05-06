@@ -117,6 +117,12 @@ exclude = ["^src/alphamind/db/migrations/"]
 module = "tests.*"
 disallow_untyped_defs = false
 
+[[tool.mypy.overrides]]
+# pgvector ships without a py.typed marker. We only use the SQLAlchemy
+# adapter; ignoring it lets the rest of the codebase stay strict.
+module = "pgvector.*"
+ignore_missing_imports = true
+
 # -----------------------------------------------------------------------------
 # Pytest.
 # -----------------------------------------------------------------------------

@@ -19,6 +19,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from alphamind.db.session import session_scope
+from alphamind.models.company import Company
 from alphamind.models.filing import Filing
 from alphamind.models.filing_chunk import FilingChunk
 from alphamind.models.filing_document import FilingDocument
@@ -43,9 +44,7 @@ async def _load_chunks(
     session: AsyncSession,
     filing_id: int,
 ) -> list[FilingChunk]:
-    result = await session.execute(
-        select(FilingChunk).where(FilingChunk.filing_id == filing_id)
-    )
+    result = await session.execute(select(FilingChunk).where(FilingChunk.filing_id == filing_id))
     return list(result.scalars())
 
 
@@ -67,9 +66,7 @@ async def chunk_filing(
 
     pipeline = pipeline or ChunkingPipeline()
 
-    filing_q = await session.execute(
-        select(Filing).where(Filing.id == filing_id)
-    )
+    filing_q = await session.execute(select(Filing).where(Filing.id == filing_id))
     filing = filing_q.scalar_one_or_none()
     if filing is None:
         return ChunkingResult(
@@ -96,9 +93,7 @@ async def chunk_filing(
 
     existing = await _load_chunks(session, filing_id)
     if existing:
-        await session.execute(
-            delete(FilingChunk).where(FilingChunk.filing_id == filing_id)
-        )
+        await session.execute(delete(FilingChunk).where(FilingChunk.filing_id == filing_id))
 
     rows = [
         FilingChunk(
@@ -141,11 +136,7 @@ async def chunk_filings_for_cik(
     results: list[ChunkingResult] = []
 
     async with session_scope() as session:
-        from alphamind.models.company import Company
-
-        company_q = await session.execute(
-            select(Company).where(Company.cik == padded_cik)
-        )
+        company_q = await session.execute(select(Company).where(Company.cik == padded_cik))
         company = company_q.scalar_one_or_none()
         if company is None:
             raise LookupError(f"company not ingested for cik={padded_cik!r}")

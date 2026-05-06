@@ -47,7 +47,9 @@ _ITEM_PATTERNS: tuple[tuple[str, str], ...] = (
         "Item 7A. Quantitative and Qualitative Disclosures",
     ),
     (
-        r"item\s+7\.?\s+management(?:'|’)s\s+discussion",
+        # The curly apostrophe U+2019 is what almost every real EDGAR
+        # filing uses; the plain ASCII apostrophe is the rarer fallback.
+        "item\\s+7\\.?\\s+management(?:'|\u2019)s\\s+discussion",
         "Item 7. Management's Discussion and Analysis",
     ),
     (r"item\s+8\.?\s+financial\s+statements", "Item 8. Financial Statements"),

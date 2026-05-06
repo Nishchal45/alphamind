@@ -17,6 +17,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 Environment = Literal["development", "test", "staging", "production"]
 StorageBackend = Literal["local"]
+EmbeddingBackend = Literal["deterministic"]
 
 
 class Settings(BaseSettings):
@@ -65,6 +66,17 @@ class Settings(BaseSettings):
         ),
     )
 
+    # --- Embedder ---
+    embedding_backend: EmbeddingBackend = Field(
+        default="deterministic",
+        description=(
+            "Backend used by alphamind.retrieval.embeddings. 'deterministic' is "
+            "a hash-seeded RNG embedder for tests/dev — useless for real semantic "
+            "search but lets the full pipeline run without a model download. "
+            "Real sentence-transformer support is wired in Phase 3."
+        ),
+    )
+
     @property
     def is_production(self) -> bool:
         return self.environment == "production"
@@ -77,4 +89,10 @@ def get_settings() -> Settings:
     return Settings()  # type: ignore[call-arg]
 
 
-__all__ = ["Environment", "Settings", "StorageBackend", "get_settings"]
+__all__ = [
+    "EmbeddingBackend",
+    "Environment",
+    "Settings",
+    "StorageBackend",
+    "get_settings",
+]
