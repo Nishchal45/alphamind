@@ -72,6 +72,19 @@ Once services are up and migrations applied, pull recent filings for a few ticke
 uv run python scripts/ingest_edgar.py --ticker AAPL MSFT NVDA
 ```
 
+### Asking a question
+
+After bodies are fetched (`--with-bodies`) and chunks are built, run:
+
+```bash
+LLM_BACKEND=anthropic ANTHROPIC_API_KEY=sk-ant-... \
+  uv run python scripts/ask.py \
+    --query "what is NVDA saying about China revenue concentration?" \
+    --as-of 2024-12-31
+```
+
+This is the first end-to-end demo — BM25 retrieval over your ingested filings + a Claude call that's instructed to answer using only the cited sources. Without an API key set, the default `LLM_BACKEND=echo` returns a stub so the rest of the pipeline can still be exercised. Operational details in [`docs/runbooks/ask.md`](docs/runbooks/ask.md).
+
 Example output:
 
 ```
@@ -87,7 +100,7 @@ CIK          TICKER     SEEN  WRITTEN  NAME
 
 - [x] Phase 1 — repo scaffolding, Postgres + pgvector, SEC EDGAR metadata ingestion
 - [x] Phase 2 — filing-body ingestion, finance-aware chunking, embeddings, hybrid retrieval (BM25 + pgvector + RRF + cross-encoder rerank) with a hard time-horizon filter at every stage
-- [ ] Phase 3 — real sentence-transformer embedder + cross-encoder rerank, LangGraph agent team (router, specialists, synthesizer, critic)
+- [ ] Phase 3 — LLM provider integration (Anthropic adapter shipped), real sentence-transformer embedder + cross-encoder rerank, LangGraph agent team (router, specialists, synthesizer, critic)
 - [ ] Phase 4 — fine-tuned SLM on financial text (LoRA / QLoRA)
 - [ ] Phase 5 — FastAPI serving layer with streaming, caching, cost routing
 - [ ] Phase 6 — backtest harness, evaluation set, public result dashboard

@@ -35,6 +35,10 @@ All notable changes to this project will be documented in this file. The format 
 - `alphamind.retrieval.search` package: BM25 (`lexical_search`), pgvector cosine ANN (`dense_search`), Reciprocal Rank Fusion (`reciprocal_rank_fusion`), a `Reranker` protocol with a `DeterministicReranker` Jaccard stub, and the end-to-end `HybridSearch` orchestrator. The `as_of` time-horizon parameter is required at every stage that touches the database.
 - ADR 0005 documenting the retrieval pipeline design and the three-layer enforcement of the time-horizon invariant.
 - Runbook `docs/runbooks/retrieval.md` covering chunker / embedder / search invocation and failure modes.
+- `alphamind.llm` package: narrow `LLMClient` Protocol, `AnthropicLLMClient` adapter wrapping the official SDK with tenacity retries on transient errors and clean error mapping into `LLMClientError`, and an `EchoLLMClient` stub for offline development. Config-driven factory (`LLM_BACKEND`).
+- `scripts/ask.py` — the project's first end-to-end demo. Runs BM25 search over `filing_chunks`, formats the top-k chunks as numbered sources, and asks the LLM to answer using only those sources with citations. `--as-of` is required, not optional.
+- ADR 0006 documenting the LLM provider integration design.
+- Runbook `docs/runbooks/ask.md` covering the new CLI's invocation and failure modes.
 
 ### Changed
 - `EdgarClient` no longer sends a fixed `Accept: application/json` header — the same client now hits both JSON endpoints under `data.sec.gov` and HTML/XML bodies under `www.sec.gov/Archives`.
