@@ -28,8 +28,16 @@ All notable changes to this project will be documented in this file. The format 
 - `EdgarClient.get_primary_document()` for fetching filing bodies from EDGAR Archives, returning `(bytes, content_type, source_url)`.
 - `ingest_bodies_for_cik` service and `--with-bodies` CLI flag for `scripts/ingest_edgar.py`. Idempotent: refetched bodies whose SHA-256 matches the existing row skip the storage write and the upsert.
 - ADR 0004 documenting the storage layer design.
+- `alphamind.retrieval.chunking` package: HTML→text via bs4, regex-based 10-K / 10-Q section detection (Item 1A, 7, 7A, 8, etc.), and a token-aware sliding-window splitter using tiktoken's `cl100k_base`. `ChunkingPipeline` wires them together; chunks never cross section boundaries.
+- `FilingChunk` ORM model with migration `0004_filing_chunks`. Includes a Postgres-generated `text_tsv` column with a GIN index for BM25 lexical retrieval and a nullable `Vector(384)` `embedding` column with an HNSW index for dense ANN.
+- `chunk_filing` / `chunk_filings_for_cik` services that read filing bodies through the storage backend, run them through the chunker, and replace prior chunks atomically inside one transaction.
+- `alphamind.retrieval.embeddings` package: narrow `Embedder` protocol (`dim` + `embed`), a `DeterministicHashEmbedder` for tests/dev that lets the pipeline run end-to-end without a model download, a config-driven factory (`EMBEDDING_BACKEND`), and an `embed_chunks_for_filing` service that batches inputs and is idempotent on re-runs.
+- `alphamind.retrieval.search` package: BM25 (`lexical_search`), pgvector cosine ANN (`dense_search`), Reciprocal Rank Fusion (`reciprocal_rank_fusion`), a `Reranker` protocol with a `DeterministicReranker` Jaccard stub, and the end-to-end `HybridSearch` orchestrator. The `as_of` time-horizon parameter is required at every stage that touches the database.
+- ADR 0005 documenting the retrieval pipeline design and the three-layer enforcement of the time-horizon invariant.
+- Runbook `docs/runbooks/retrieval.md` covering chunker / embedder / search invocation and failure modes.
 
 ### Changed
 - `EdgarClient` no longer sends a fixed `Accept: application/json` header — the same client now hits both JSON endpoints under `data.sec.gov` and HTML/XML bodies under `www.sec.gov/Archives`.
+- README roadmap: Phase 2 is now complete (chunker, embeddings, hybrid retrieval, cross-encoder rerank).
 
 [Unreleased]: https://github.com/Nishchal45/alphamind/compare/HEAD...HEAD

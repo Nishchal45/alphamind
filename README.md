@@ -86,8 +86,8 @@ CIK          TICKER     SEEN  WRITTEN  NAME
 ## Roadmap
 
 - [x] Phase 1 — repo scaffolding, Postgres + pgvector, SEC EDGAR metadata ingestion
-- [ ] Phase 2 — filing-body ingestion, chunking, embeddings, hybrid retrieval, cross-encoder rerank
-- [ ] Phase 3 — LangGraph agent team (router, specialists, synthesizer, critic)
+- [x] Phase 2 — filing-body ingestion, finance-aware chunking, embeddings, hybrid retrieval (BM25 + pgvector + RRF + cross-encoder rerank) with a hard time-horizon filter at every stage
+- [ ] Phase 3 — real sentence-transformer embedder + cross-encoder rerank, LangGraph agent team (router, specialists, synthesizer, critic)
 - [ ] Phase 4 — fine-tuned SLM on financial text (LoRA / QLoRA)
 - [ ] Phase 5 — FastAPI serving layer with streaming, caching, cost routing
 - [ ] Phase 6 — backtest harness, evaluation set, public result dashboard
