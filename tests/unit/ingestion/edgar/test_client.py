@@ -110,6 +110,57 @@ async def test_non_retryable_4xx_raises_immediately(user_agent: str) -> None:
                 await client.get_submissions("1")
 
 
+async def test_get_primary_document_builds_archive_url_and_returns_body(
+    user_agent: str,
+) -> None:
+    """The Archives URL uses the un-padded CIK and dash-stripped accession number."""
+
+    expected_url = (
+        f"{SEC_WWW_BASE}/Archives/edgar/data/320193/000032019324000123/aapl-20240928.htm"
+    )
+    body = b"<html><body>10-K body</body></html>"
+
+    async with respx.mock(assert_all_called=True) as mock:
+        route = mock.get(expected_url).respond(
+            content=body,
+            headers={"Content-Type": "text/html; charset=utf-8"},
+        )
+
+        async with EdgarClient(user_agent=user_agent, rate=100) as client:
+            content, content_type, url = await client.get_primary_document(
+                cik="0000320193",
+                accession_number="0000320193-24-000123",
+                primary_document="aapl-20240928.htm",
+            )
+
+    assert route.called
+    assert content == body
+    assert content_type.startswith("text/html")
+    assert url == expected_url
+
+
+async def test_get_primary_document_rejects_invalid_inputs(user_agent: str) -> None:
+    async with EdgarClient(user_agent=user_agent, rate=100) as client:
+        with pytest.raises(ValueError):
+            await client.get_primary_document(
+                cik="0000000000",
+                accession_number="0000320193-24-000123",
+                primary_document="x.htm",
+            )
+        with pytest.raises(ValueError):
+            await client.get_primary_document(
+                cik="320193",
+                accession_number="   ",
+                primary_document="x.htm",
+            )
+        with pytest.raises(ValueError):
+            await client.get_primary_document(
+                cik="320193",
+                accession_number="0000320193-24-000123",
+                primary_document="",
+            )
+
+
 async def test_concurrent_requests_stay_within_rate(user_agent: str) -> None:
     """Ten concurrent requests under a 5 req/s limit must take at least ~1s."""
 
