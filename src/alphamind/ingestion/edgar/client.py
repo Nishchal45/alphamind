@@ -107,11 +107,12 @@ class EdgarClient:
         transport: httpx.AsyncBaseTransport | None = None,
     ) -> None:
         agent = user_agent or get_settings().sec_user_agent
+        # No global Accept header: this client hits both JSON endpoints under
+        # data.sec.gov and HTML/XML document bodies under www.sec.gov/Archives.
         self._client = httpx.AsyncClient(
             headers={
                 "User-Agent": agent,
                 "Accept-Encoding": "gzip, deflate",
-                "Accept": "application/json",
             },
             timeout=timeout,
             follow_redirects=True,
@@ -176,14 +177,65 @@ class EdgarClient:
         response = await self._get(url)
         return response.json()  # type: ignore[no-any-return]
 
+    async def get_primary_document(
+        self,
+        *,
+        cik: str,
+        accession_number: str,
+        primary_document: str,
+    ) -> tuple[bytes, str, str]:
+        """Fetch the primary document body for a single filing.
+
+        Parameters
+        ----------
+        cik:
+            The filer's CIK. Leading zeros are tolerated and stripped — the
+            ``Archives`` URL uses the integer form.
+        accession_number:
+            EDGAR accession number, with or without dashes
+            (e.g. ``"0000320193-24-000123"``).
+        primary_document:
+            Filename of the primary document inside the filing's archive
+            directory (e.g. ``"aapl-20240928.htm"``). Comes from the
+            submissions endpoint.
+
+        Returns
+        -------
+        ``(body, content_type, source_url)`` — raw bytes, the response's
+        ``Content-Type`` header (defaults to ``application/octet-stream`` if
+        absent), and the canonical EDGAR URL the bytes were fetched from.
+        """
+
+        cik_clean = cik.strip().lstrip("0")
+        if not cik_clean:
+            raise ValueError(f"invalid cik: {cik!r}")
+        if not accession_number.strip():
+            raise ValueError("accession_number must be non-empty")
+        if not primary_document.strip():
+            raise ValueError("primary_document must be non-empty")
+
+        accession_dashless = accession_number.replace("-", "")
+        url = (
+            f"{SEC_WWW_BASE}/Archives/edgar/data/{cik_clean}/"
+            f"{accession_dashless}/{primary_document}"
+        )
+        logger.debug(
+            "edgar: fetching primary document cik=%s accession=%s",
+            cik_clean,
+            accession_number,
+        )
+        response = await self._get(url)
+        content_type = response.headers.get("content-type", "application/octet-stream")
+        return response.content, content_type, url
+
 
 __all__ = [
     "DEFAULT_MAX_RETRIES",
     "DEFAULT_RATE_PER_SECOND",
     "DEFAULT_TIMEOUT_SECONDS",
-    "EdgarClient",
-    "RetryableStatusError",
     "SEC_DATA_BASE",
     "SEC_WWW_BASE",
+    "EdgarClient",
+    "RetryableStatusError",
     "TokenBucketLimiter",
 ]

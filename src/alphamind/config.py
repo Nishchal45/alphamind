@@ -9,12 +9,14 @@ rest of the application can treat configuration as read-only.
 from __future__ import annotations
 
 from functools import lru_cache
+from pathlib import Path
 from typing import Literal
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 Environment = Literal["development", "test", "staging", "production"]
+StorageBackend = Literal["local"]
 
 
 class Settings(BaseSettings):
@@ -50,6 +52,19 @@ class Settings(BaseSettings):
         ),
     )
 
+    # --- Object storage for filing bodies and other large blobs ---
+    storage_backend: StorageBackend = Field(
+        default="local",
+        description="Backend used by alphamind.storage. Currently only 'local' is implemented.",
+    )
+    storage_local_path: Path = Field(
+        default=Path("./data/storage"),
+        description=(
+            "Root directory used by the local-filesystem storage backend. "
+            "Ignored when storage_backend is not 'local'."
+        ),
+    )
+
     @property
     def is_production(self) -> bool:
         return self.environment == "production"
@@ -62,4 +77,4 @@ def get_settings() -> Settings:
     return Settings()  # type: ignore[call-arg]
 
 
-__all__ = ["Environment", "Settings", "get_settings"]
+__all__ = ["Environment", "Settings", "StorageBackend", "get_settings"]

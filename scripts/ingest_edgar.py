@@ -5,10 +5,16 @@ Usage:
     uv run python scripts/ingest_edgar.py --ticker AAPL MSFT NVDA
     uv run python scripts/ingest_edgar.py --cik 320193 789019 --forms 10-K 10-Q
     uv run python scripts/ingest_edgar.py --ticker AAPL --limit 5
+    uv run python scripts/ingest_edgar.py --ticker AAPL --with-bodies
 
 The script exits with code 1 if any ticker fails to resolve or any request
 raises. Per-item errors are logged but do not abort sibling items so that
 a single bad ticker does not kill an overnight backfill.
+
+When ``--with-bodies`` is set, each filing's primary document is fetched
+from EDGAR Archives, written to the configured storage backend, and
+recorded in the ``filing_documents`` table. Bodies whose SHA-256 already
+matches what is stored are skipped without rewriting.
 """
 
 from __future__ import annotations
@@ -21,7 +27,14 @@ import sys
 from alphamind.config import get_settings
 from alphamind.db.session import dispose_engine
 from alphamind.ingestion.edgar.client import EdgarClient
-from alphamind.ingestion.edgar.service import IngestResult, ingest_cik, ingest_ticker
+from alphamind.ingestion.edgar.service import (
+    BodyIngestResult,
+    IngestResult,
+    ingest_bodies_for_cik,
+    ingest_cik,
+    ingest_ticker,
+)
+from alphamind.storage.factory import get_storage
 
 logger = logging.getLogger("alphamind.ingest_edgar")
 
@@ -37,13 +50,24 @@ def parse_args() -> argparse.Namespace:
         "--forms",
         nargs="+",
         default=list(DEFAULT_FORMS),
-        help=f"Form types to keep (default: {' '.join(DEFAULT_FORMS)}). Use 'ALL' to disable the filter.",
+        help=(
+            f"Form types to keep (default: {' '.join(DEFAULT_FORMS)}). "
+            "Use 'ALL' to disable the filter."
+        ),
     )
     parser.add_argument(
         "--limit",
         type=int,
         default=None,
         help="Keep only the N most recent matching filings per company.",
+    )
+    parser.add_argument(
+        "--with-bodies",
+        action="store_true",
+        help=(
+            "After ingesting metadata, fetch each filing's primary document "
+            "body and persist it via the storage backend."
+        ),
     )
     return parser.parse_args()
 
@@ -67,7 +91,9 @@ async def _run(args: argparse.Namespace) -> int:
     forms = _build_form_filter(args.forms)
 
     results: list[IngestResult] = []
+    body_results: list[BodyIngestResult] = []
     exit_code = 0
+    storage = get_storage() if args.with_bodies else None
 
     async with EdgarClient() as client:
         if args.ticker:
@@ -83,6 +109,26 @@ async def _run(args: argparse.Namespace) -> int:
                 except Exception:
                     logger.exception("ingest failed for ticker=%s", ticker)
                     exit_code = 1
+                    continue
+
+                if storage is not None:
+                    try:
+                        body_results.append(
+                            await ingest_bodies_for_cik(
+                                client,
+                                storage,
+                                result.cik,
+                                form_types=forms,
+                                limit=args.limit,
+                            )
+                        )
+                    except Exception:
+                        logger.exception(
+                            "body ingest failed for ticker=%s cik=%s",
+                            ticker,
+                            result.cik,
+                        )
+                        exit_code = 1
         elif args.cik:
             for cik in args.cik:
                 try:
@@ -96,6 +142,22 @@ async def _run(args: argparse.Namespace) -> int:
                 except Exception:
                     logger.exception("ingest failed for cik=%s", cik)
                     exit_code = 1
+                    continue
+
+                if storage is not None:
+                    try:
+                        body_results.append(
+                            await ingest_bodies_for_cik(
+                                client,
+                                storage,
+                                result.cik,
+                                form_types=forms,
+                                limit=args.limit,
+                            )
+                        )
+                    except Exception:
+                        logger.exception("body ingest failed for cik=%s", result.cik)
+                        exit_code = 1
 
     print()
     print(f"{'CIK':<12} {'TICKER':<8} {'SEEN':>6} {'WRITTEN':>8}  NAME")
@@ -104,6 +166,16 @@ async def _run(args: argparse.Namespace) -> int:
             f"{r.cik:<12} {(r.ticker or '-'):<8} "
             f"{r.filings_seen:>6} {r.filings_written:>8}  {r.name}"
         )
+
+    if body_results:
+        print()
+        print(f"{'CIK':<12} {'BODIES_SEEN':>12} {'WRITTEN':>8} {'UNCHANGED':>10} {'FAILED':>7}")
+        for b in body_results:
+            print(
+                f"{b.cik:<12} {b.bodies_seen:>12} {b.bodies_written:>8} "
+                f"{b.bodies_unchanged:>10} {b.bodies_failed:>7}"
+            )
+
     return exit_code
 
 

@@ -36,6 +36,18 @@ Backfill the 50 most recent filings of all types for one ticker:
 uv run python scripts/ingest_edgar.py --ticker AAPL --forms ALL --limit 50
 ```
 
+Ingest metadata *and* fetch each filing's primary document body:
+
+```bash
+uv run python scripts/ingest_edgar.py --ticker AAPL --with-bodies --limit 5
+```
+
+`--with-bodies` adds a second pass after the metadata write. Each filing's
+primary document is fetched from EDGAR Archives, hashed (SHA-256), written
+to the configured storage backend (`STORAGE_BACKEND`, defaults to `local`
+under `STORAGE_LOCAL_PATH`), and recorded in `filing_documents`. Bodies
+whose hash matches the existing row are skipped without rewriting.
+
 ## Reading the output
 
 The script prints a terminal summary:
@@ -48,6 +60,18 @@ CIK          TICKER     SEEN  WRITTEN  NAME
 
 - `SEEN` — filings returned by EDGAR for this company in the recent-filings window.
 - `WRITTEN` — filings passed through the form / limit filters and upserted.
+
+When `--with-bodies` is set, a second table follows:
+
+```
+CIK           BODIES_SEEN  WRITTEN  UNCHANGED  FAILED
+0000320193              5        4          1       0
+```
+
+- `BODIES_SEEN` — filings considered for body fetch (post form / limit filter).
+- `WRITTEN` — bodies fetched and stored (new or hash-changed).
+- `UNCHANGED` — body hash matched the existing `filing_documents` row; storage write skipped.
+- `FAILED` — exception during fetch or storage write; sibling filings continued.
 
 Exit code is `0` iff every requested ticker/CIK ran cleanly. A non-zero exit
 means at least one item failed; sibling items are still attempted and their
@@ -62,6 +86,8 @@ writes are committed.
 | `LookupError: ticker not found` | Ticker not in EDGAR map (e.g. a recent IPO) | Fall back to `--cik` with the CIK from SEC's company search. |
 | `pgvector extension is not installed` from healthcheck | Migrations not applied | Run `make migrate`. |
 | Hangs on startup | Postgres container not ready | `make compose-logs` and wait for `database system is ready`. |
+| `body ingest failed` for a single filing | Document URL 404 (rare; some old filings) | Logged as `FAILED` in the body summary; sibling filings continue. Inspect the logged URL manually if it's a recurring filer. |
+| Storage path permission errors with `--with-bodies` | `STORAGE_LOCAL_PATH` not writable | Either change the path in `.env` or `chmod`/`chown` the existing directory. |
 
 ## Operational notes
 

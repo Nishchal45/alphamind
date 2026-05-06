@@ -25,3 +25,4 @@ An ADR starts in `proposed` status, moves to `accepted` when merged, and may lat
 - [0001 — Record architecture decisions](0001-record-architecture-decisions.md)
 - [0002 — Use PostgreSQL with pgvector for documents and embeddings](0002-postgres-pgvector-for-retrieval.md)
 - [0003 — SEC EDGAR ingestion design](0003-edgar-ingestion-design.md)
+- [0004 — Storage layer for filing bodies](0004-storage-layer-for-filing-bodies.md)

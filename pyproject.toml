@@ -76,11 +76,17 @@ ignore = [
     "ANN401",   # allow Any in narrow cases
     "PLR0913",  # too many arguments
     "S101",     # use of assert (we use pytest)
+    # `from __future__ import annotations` already makes every annotation
+    # a string at runtime, so the TC* nudges to move imports under
+    # `if TYPE_CHECKING:` add clutter without runtime benefit.
+    "TC001",
+    "TC002",
+    "TC003",
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["ANN", "PLR2004", "S101"]
-"scripts/**" = ["ANN"]
+"tests/**" = ["ANN", "ASYNC240", "PLR2004", "S101"]
+"scripts/**" = ["ANN", "PLR0912"]
 "src/alphamind/db/migrations/**" = ["ANN", "N806", "INP001"]
 
 [tool.ruff.format]

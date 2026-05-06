@@ -12,6 +12,7 @@ from alphamind.db.base import Base, TimestampMixin
 
 if TYPE_CHECKING:
     from alphamind.models.company import Company
+    from alphamind.models.filing_document import FilingDocument
 
 
 class Filing(Base, TimestampMixin):
@@ -36,6 +37,12 @@ class Filing(Base, TimestampMixin):
     primary_doc_description: Mapped[str | None] = mapped_column(String(256))
 
     company: Mapped[Company] = relationship(back_populates="filings")
+    document: Mapped[FilingDocument | None] = relationship(
+        back_populates="filing",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        uselist=False,
+    )
 
     def __repr__(self) -> str:
         return (

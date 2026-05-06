@@ -23,5 +23,13 @@ All notable changes to this project will be documented in this file. The format 
 - `scripts/ingest_edgar.py` CLI accepting `--ticker`, `--cik`, `--forms`, and `--limit`, with per-item error isolation so a single bad input does not abort a batch.
 - Runbook `docs/runbooks/ingest-edgar.md` covering prerequisites, common invocations, and failure modes.
 - ADR 0003 documenting the EDGAR ingestion design.
+- `alphamind.storage` package with a narrow `StorageBackend` protocol (`put` / `get` / `exists`), a content-addressable `LocalFilesystemStorage` implementation that shards by key prefix, and a config-driven factory so production backends can be swapped in later.
+- `FilingDocument` ORM model with migration `0003_filing_documents`, recording the storage URI, SHA-256 content hash, byte size, MIME type, source URL, and fetch timestamp for each filing's primary document body.
+- `EdgarClient.get_primary_document()` for fetching filing bodies from EDGAR Archives, returning `(bytes, content_type, source_url)`.
+- `ingest_bodies_for_cik` service and `--with-bodies` CLI flag for `scripts/ingest_edgar.py`. Idempotent: refetched bodies whose SHA-256 matches the existing row skip the storage write and the upsert.
+- ADR 0004 documenting the storage layer design.
+
+### Changed
+- `EdgarClient` no longer sends a fixed `Accept: application/json` header — the same client now hits both JSON endpoints under `data.sec.gov` and HTML/XML bodies under `www.sec.gov/Archives`.
 
 [Unreleased]: https://github.com/Nishchal45/alphamind/compare/HEAD...HEAD

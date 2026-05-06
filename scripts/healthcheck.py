@@ -25,9 +25,7 @@ async def check_postgres() -> None:
     async with engine.connect() as conn:
         version = (await conn.execute(text("SELECT version()"))).scalar_one()
         vector_ext = (
-            await conn.execute(
-                text("SELECT extname FROM pg_extension WHERE extname = 'vector'")
-            )
+            await conn.execute(text("SELECT extname FROM pg_extension WHERE extname = 'vector'"))
         ).scalar_one_or_none()
 
     short = str(version).split(" on ", maxsplit=1)[0]
