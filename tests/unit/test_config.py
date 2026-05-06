@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from alphamind.config import Settings
@@ -13,9 +15,11 @@ REQUIRED = {
     "SEC_USER_AGENT": "AlphaMind test test@example.com",
 }
 
+OPTIONAL = ("STORAGE_BACKEND", "STORAGE_LOCAL_PATH")
+
 
 def _apply(monkeypatch: pytest.MonkeyPatch, env: dict[str, str]) -> None:
-    for key in ("ENVIRONMENT", "LOG_LEVEL", *REQUIRED.keys()):
+    for key in ("ENVIRONMENT", "LOG_LEVEL", *REQUIRED.keys(), *OPTIONAL):
         monkeypatch.delenv(key, raising=False)
     for key, value in env.items():
         monkeypatch.setenv(key, value)
@@ -55,3 +59,26 @@ def test_rejects_invalid_environment(monkeypatch: pytest.MonkeyPatch) -> None:
 
     with pytest.raises(ValueError):
         Settings(_env_file=None)
+
+
+def test_storage_settings_default_to_local(monkeypatch: pytest.MonkeyPatch) -> None:
+    _apply(monkeypatch, REQUIRED)
+
+    settings = Settings(_env_file=None)
+
+    assert settings.storage_backend == "local"
+    assert settings.storage_local_path == Path("./data/storage")
+
+
+def test_storage_settings_override_from_env(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    _apply(
+        monkeypatch,
+        {**REQUIRED, "STORAGE_LOCAL_PATH": str(tmp_path)},
+    )
+
+    settings = Settings(_env_file=None)
+
+    assert settings.storage_local_path == tmp_path
