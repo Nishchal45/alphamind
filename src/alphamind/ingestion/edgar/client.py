@@ -233,9 +233,9 @@ __all__ = [
     "DEFAULT_MAX_RETRIES",
     "DEFAULT_RATE_PER_SECOND",
     "DEFAULT_TIMEOUT_SECONDS",
-    "EdgarClient",
-    "RetryableStatusError",
     "SEC_DATA_BASE",
     "SEC_WWW_BASE",
+    "EdgarClient",
+    "RetryableStatusError",
     "TokenBucketLimiter",
 ]

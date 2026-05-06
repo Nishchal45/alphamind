@@ -45,4 +45,4 @@ class TimestampMixin:
     )
 
 
-__all__ = ["Base", "NAMING_CONVENTION", "TimestampMixin", "metadata"]
+__all__ = ["NAMING_CONVENTION", "Base", "TimestampMixin", "metadata"]

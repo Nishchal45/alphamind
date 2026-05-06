@@ -316,14 +316,11 @@ async def ingest_bodies_for_cik(
     padded_cik = cik.strip().zfill(10)
 
     async with session_scope() as session:
-        company_q = await session.execute(
-            select(Company).where(Company.cik == padded_cik)
-        )
+        company_q = await session.execute(select(Company).where(Company.cik == padded_cik))
         company = company_q.scalar_one_or_none()
         if company is None:
             raise LookupError(
-                f"company not ingested yet for cik={padded_cik!r}; "
-                "run ingest_cik first"
+                f"company not ingested yet for cik={padded_cik!r}; run ingest_cik first"
             )
 
         filings_stmt = select(Filing).where(Filing.company_id == company.id)

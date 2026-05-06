@@ -50,7 +50,10 @@ def parse_args() -> argparse.Namespace:
         "--forms",
         nargs="+",
         default=list(DEFAULT_FORMS),
-        help=f"Form types to keep (default: {' '.join(DEFAULT_FORMS)}). Use 'ALL' to disable the filter.",
+        help=(
+            f"Form types to keep (default: {' '.join(DEFAULT_FORMS)}). "
+            "Use 'ALL' to disable the filter."
+        ),
     )
     parser.add_argument(
         "--limit",
@@ -166,9 +169,7 @@ async def _run(args: argparse.Namespace) -> int:
 
     if body_results:
         print()
-        print(
-            f"{'CIK':<12} {'BODIES_SEEN':>12} {'WRITTEN':>8} {'UNCHANGED':>10} {'FAILED':>7}"
-        )
+        print(f"{'CIK':<12} {'BODIES_SEEN':>12} {'WRITTEN':>8} {'UNCHANGED':>10} {'FAILED':>7}")
         for b in body_results:
             print(
                 f"{b.cik:<12} {b.bodies_seen:>12} {b.bodies_written:>8} "

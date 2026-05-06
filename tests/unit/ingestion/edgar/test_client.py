@@ -115,9 +115,7 @@ async def test_get_primary_document_builds_archive_url_and_returns_body(
 ) -> None:
     """The Archives URL uses the un-padded CIK and dash-stripped accession number."""
 
-    expected_url = (
-        f"{SEC_WWW_BASE}/Archives/edgar/data/320193/000032019324000123/aapl-20240928.htm"
-    )
+    expected_url = f"{SEC_WWW_BASE}/Archives/edgar/data/320193/000032019324000123/aapl-20240928.htm"
     body = b"<html><body>10-K body</body></html>"
 
     async with respx.mock(assert_all_called=True) as mock:

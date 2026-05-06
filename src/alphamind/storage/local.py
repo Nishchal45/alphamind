@@ -22,6 +22,8 @@ from urllib.parse import urlparse
 
 from alphamind.storage.base import StorageError
 
+_SHARD_PREFIX_LEN = 2
+
 
 class LocalFilesystemStorage:
     """Persist blobs under a directory tree on the local filesystem.
@@ -41,7 +43,7 @@ class LocalFilesystemStorage:
     def _path_for(self, key: str) -> Path:
         if not key or "/" in key or ".." in key:
             raise StorageError(f"invalid storage key: {key!r}")
-        prefix = key[:2] if len(key) >= 2 else "_"
+        prefix = key[:_SHARD_PREFIX_LEN] if len(key) >= _SHARD_PREFIX_LEN else "_"
         return self._root / prefix / key
 
     def _uri_for(self, path: Path) -> str:

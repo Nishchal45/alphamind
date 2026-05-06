@@ -14,12 +14,11 @@ from alembic import context
 from sqlalchemy import Connection, pool
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
-from alphamind.config import get_settings
-from alphamind.db.base import Base
-
 # Importing the models package eagerly registers every ORM class on
 # Base.metadata so that Alembic's autogenerate sees the full schema.
-from alphamind import models  # noqa: F401, E402
+from alphamind import models  # noqa: F401
+from alphamind.config import get_settings
+from alphamind.db.base import Base
 
 config = context.config
 
