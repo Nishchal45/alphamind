@@ -18,6 +18,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 Environment = Literal["development", "test", "staging", "production"]
 StorageBackend = Literal["local"]
 EmbeddingBackend = Literal["deterministic"]
+LLMBackend = Literal["anthropic", "echo"]
 
 
 class Settings(BaseSettings):
@@ -77,6 +78,24 @@ class Settings(BaseSettings):
         ),
     )
 
+    # --- LLM provider ---
+    llm_backend: LLMBackend = Field(
+        default="echo",
+        description=(
+            "LLM backend used by alphamind.llm. 'anthropic' calls the real "
+            "API; 'echo' is a deterministic stub that echoes the last user "
+            "message back, useful for offline development and tests."
+        ),
+    )
+    llm_model: str = Field(
+        default="claude-sonnet-4-5",
+        description="Model identifier passed to the LLM backend.",
+    )
+    anthropic_api_key: str | None = Field(
+        default=None,
+        description="Required when llm_backend='anthropic'. Read from ANTHROPIC_API_KEY.",
+    )
+
     @property
     def is_production(self) -> bool:
         return self.environment == "production"
@@ -92,6 +111,7 @@ def get_settings() -> Settings:
 __all__ = [
     "EmbeddingBackend",
     "Environment",
+    "LLMBackend",
     "Settings",
     "StorageBackend",
     "get_settings",

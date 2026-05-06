@@ -29,6 +29,7 @@ dependencies = [
     "tiktoken>=0.8",
     "pgvector>=0.3",
     "numpy>=1.26",
+    "anthropic>=0.40",
 ]
 
 [dependency-groups]
