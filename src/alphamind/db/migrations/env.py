@@ -30,6 +30,23 @@ config.set_main_option("sqlalchemy.url", get_settings().database_url)
 target_metadata = Base.metadata
 
 
+_RAW_SQL_INDEX_NAMES = frozenset({"ix_filing_chunks_text_tsv", "ix_filing_chunks_embedding_hnsw"})
+
+
+def _include_object(obj, name, type_, reflected, compare_to) -> bool:  # type: ignore[no-untyped-def]
+    """Skip autogenerate diffs for objects that live only in raw-SQL migrations.
+
+    The tsvector generated column and the HNSW/GIN indexes on ``filing_chunks``
+    are managed by migration 0007. Declaring them in SQLAlchemy core is awkward
+    (HNSW is not a first-class index type), so we exclude them from autogenerate
+    comparison rather than fight the ORM.
+    """
+
+    if type_ == "column" and name == "text_tsv":
+        return False
+    return not (type_ == "index" and name in _RAW_SQL_INDEX_NAMES)
+
+
 def run_migrations_offline() -> None:
     """Run migrations without a live DB connection (emits SQL to stdout)."""
 
@@ -41,6 +58,7 @@ def run_migrations_offline() -> None:
         dialect_opts={"paramstyle": "named"},
         compare_type=True,
         compare_server_default=True,
+        include_object=_include_object,
     )
 
     with context.begin_transaction():
@@ -53,6 +71,7 @@ def do_run_migrations(connection: Connection) -> None:
         target_metadata=target_metadata,
         compare_type=True,
         compare_server_default=True,
+        include_object=_include_object,
     )
 
     with context.begin_transaction():

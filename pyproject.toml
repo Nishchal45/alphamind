@@ -24,6 +24,17 @@ dependencies = [
     "redis>=5.2",
     "httpx>=0.28",
     "tenacity>=9.0",
+    "beautifulsoup4>=4.12",
+    "lxml>=5.3",
+    "pgvector>=0.3",
+]
+
+[project.optional-dependencies]
+# Pulls torch + sentence-transformers. Optional because torch is ~1GB and
+# the deterministic reranker is enough for tests and dev. Install with:
+#   uv sync --extra rerank
+rerank = [
+    "sentence-transformers>=3.0",
 ]
 
 [dependency-groups]
@@ -111,6 +122,21 @@ exclude = ["^src/alphamind/db/migrations/"]
 [[tool.mypy.overrides]]
 module = "tests.*"
 disallow_untyped_defs = false
+
+# pgvector ships SQLAlchemy types without a py.typed marker yet (the package
+# does include inline annotations). Silence the "missing stubs" error so the
+# narrow surface we touch (Vector) doesn't poison strict mode.
+[[tool.mypy.overrides]]
+module = "pgvector.*"
+ignore_missing_imports = true
+
+# sentence-transformers is an optional extra (see [project.optional-dependencies]
+# rerank). The CrossEncoderReranker imports it lazily inside a try/except and
+# raises RerankerError if it is not installed, so mypy without the extra should
+# not block — and shipping stubs for torch+transformers is impractical anyway.
+[[tool.mypy.overrides]]
+module = "sentence_transformers.*"
+ignore_missing_imports = true
 
 # -----------------------------------------------------------------------------
 # Pytest.

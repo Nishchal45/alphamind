@@ -17,6 +17,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 Environment = Literal["development", "test", "staging", "production"]
 StorageBackend = Literal["local"]
+EmbedderBackend = Literal["deterministic", "gemini"]
+RerankerBackend = Literal["deterministic", "cross_encoder"]
 
 
 class Settings(BaseSettings):
@@ -65,6 +67,52 @@ class Settings(BaseSettings):
         ),
     )
 
+    # --- Embedding backend ---
+    embedder_backend: EmbedderBackend = Field(
+        default="deterministic",
+        description=(
+            "Backend used by alphamind.embeddings. 'deterministic' is hash-"
+            "based and model-free (useful for tests and dev); 'gemini' calls "
+            "Google's text-embedding-004 endpoint and requires GOOGLE_API_KEY."
+        ),
+    )
+    embedder_dimension: int = Field(
+        default=768,
+        description=(
+            "Vector dimension for the embedder. Must match the `vector(N)` "
+            "column type declared in the filing_chunks migration. 768 matches "
+            "Gemini's text-embedding-004 output."
+        ),
+    )
+    google_api_key: str | None = Field(
+        default=None,
+        description=(
+            "API key for Google's generative-language endpoints. Required "
+            "when embedder_backend='gemini'."
+        ),
+    )
+    gemini_embedding_model: str = Field(
+        default="text-embedding-004",
+        description="Gemini embedding model identifier (path segment in the REST URL).",
+    )
+
+    # --- Reranker backend ---
+    reranker_backend: RerankerBackend = Field(
+        default="deterministic",
+        description=(
+            "Backend used by alphamind.reranking. 'deterministic' is a Jaccard-"
+            "overlap reranker with no dependencies; 'cross_encoder' uses "
+            "sentence-transformers and requires the 'rerank' optional extra."
+        ),
+    )
+    cross_encoder_model: str = Field(
+        default="cross-encoder/ms-marco-MiniLM-L-6-v2",
+        description=(
+            "Hugging Face model id for the cross-encoder reranker. The default "
+            "is small (~90MB) and fast on CPU."
+        ),
+    )
+
     @property
     def is_production(self) -> bool:
         return self.environment == "production"
@@ -77,4 +125,11 @@ def get_settings() -> Settings:
     return Settings()  # type: ignore[call-arg]
 
 
-__all__ = ["Environment", "Settings", "StorageBackend", "get_settings"]
+__all__ = [
+    "EmbedderBackend",
+    "Environment",
+    "RerankerBackend",
+    "Settings",
+    "StorageBackend",
+    "get_settings",
+]
