@@ -24,6 +24,11 @@ dependencies = [
     "redis>=5.2",
     "httpx>=0.28",
     "tenacity>=9.0",
+    "beautifulsoup4>=4.12",
+    "lxml>=5.3",
+    "tiktoken>=0.8",
+    "pgvector>=0.3",
+    "numpy>=1.26",
 ]
 
 [dependency-groups]
@@ -111,6 +116,12 @@ exclude = ["^src/alphamind/db/migrations/"]
 [[tool.mypy.overrides]]
 module = "tests.*"
 disallow_untyped_defs = false
+
+[[tool.mypy.overrides]]
+# pgvector ships without a py.typed marker. We only use the SQLAlchemy
+# adapter; ignoring it lets the rest of the codebase stay strict.
+module = "pgvector.*"
+ignore_missing_imports = true
 
 # -----------------------------------------------------------------------------
 # Pytest.

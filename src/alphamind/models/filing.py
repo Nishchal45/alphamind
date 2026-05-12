@@ -12,6 +12,7 @@ from alphamind.db.base import Base, TimestampMixin
 
 if TYPE_CHECKING:
     from alphamind.models.company import Company
+    from alphamind.models.filing_chunk import FilingChunk
     from alphamind.models.filing_document import FilingDocument
 
 
@@ -42,6 +43,12 @@ class Filing(Base, TimestampMixin):
         cascade="all, delete-orphan",
         passive_deletes=True,
         uselist=False,
+    )
+    chunks: Mapped[list[FilingChunk]] = relationship(
+        back_populates="filing",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        order_by="FilingChunk.ordinal",
     )
 
     def __repr__(self) -> str:
