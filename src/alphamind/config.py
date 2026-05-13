@@ -18,6 +18,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 Environment = Literal["development", "test", "staging", "production"]
 StorageBackend = Literal["local"]
 EmbeddingBackend = Literal["deterministic", "gemini"]
+RerankerBackend = Literal["deterministic", "cross_encoder"]
 LLMBackend = Literal["anthropic", "echo"]
 
 
@@ -90,6 +91,25 @@ class Settings(BaseSettings):
         description="Gemini embedding model id (path segment in the REST URL).",
     )
 
+    # --- Reranker ---
+    reranker_backend: RerankerBackend = Field(
+        default="deterministic",
+        description=(
+            "Backend used by alphamind.retrieval.search rerankers. "
+            "'deterministic' is the Jaccard-overlap stub (no dependencies). "
+            "'cross_encoder' wraps sentence-transformers and requires the "
+            "'rerank' optional extra (``uv sync --extra rerank``)."
+        ),
+    )
+    cross_encoder_model: str = Field(
+        default="cross-encoder/ms-marco-MiniLM-L-12-v2",
+        description=(
+            "Hugging Face model id for the cross-encoder reranker. "
+            "ADR 0005 picks ``ms-marco-MiniLM-L-12-v2`` as the default — small "
+            "(~130 MB), fast on CPU, well-trained on passage relevance."
+        ),
+    )
+
     # --- LLM provider ---
     llm_backend: LLMBackend = Field(
         default="echo",
@@ -124,6 +144,7 @@ __all__ = [
     "EmbeddingBackend",
     "Environment",
     "LLMBackend",
+    "RerankerBackend",
     "Settings",
     "StorageBackend",
     "get_settings",
