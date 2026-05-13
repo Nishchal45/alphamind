@@ -39,6 +39,8 @@ All notable changes to this project will be documented in this file. The format 
 - `scripts/ask.py` — the project's first end-to-end demo. Runs BM25 search over `filing_chunks`, formats the top-k chunks as numbered sources, and asks the LLM to answer using only those sources with citations. `--as-of` is required, not optional.
 - ADR 0006 documenting the LLM provider integration design.
 - Runbook `docs/runbooks/ask.md` covering the new CLI's invocation and failure modes.
+- `GeminiEmbedder`: real embedding backend calling Google's `gemini-embedding-001` REST endpoint over `httpx + tenacity + token-bucket`. Free-tier-aware defaults (20 req/s, well under the 1500 RPM ceiling), transparent slicing into the 100-input `batchEmbedContents` cap, and an `aclose()` lifecycle. Truncates the Matryoshka output to `EMBEDDING_DIM` via `outputDimensionality` and L2-renormalises so the unit-norm contract in the `Embedder` protocol still holds; uses `taskType=RETRIEVAL_DOCUMENT` for chunk encoding.
+- `google_api_key` and `gemini_embedding_model` settings; `EMBEDDING_BACKEND=gemini` selects the new backend. `dispose_embedder()` factory hook for shutting the HTTP client down cleanly.
 
 ### Changed
 - `EdgarClient` no longer sends a fixed `Accept: application/json` header — the same client now hits both JSON endpoints under `data.sec.gov` and HTML/XML bodies under `www.sec.gov/Archives`.

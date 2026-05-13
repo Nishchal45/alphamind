@@ -17,7 +17,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 Environment = Literal["development", "test", "staging", "production"]
 StorageBackend = Literal["local"]
-EmbeddingBackend = Literal["deterministic"]
+EmbeddingBackend = Literal["deterministic", "gemini"]
 LLMBackend = Literal["anthropic", "echo"]
 
 
@@ -74,8 +74,20 @@ class Settings(BaseSettings):
             "Backend used by alphamind.retrieval.embeddings. 'deterministic' is "
             "a hash-seeded RNG embedder for tests/dev — useless for real semantic "
             "search but lets the full pipeline run without a model download. "
-            "Real sentence-transformer support is wired in Phase 3."
+            "'gemini' calls Google's gemini-embedding-001 REST endpoint and "
+            "requires GOOGLE_API_KEY."
         ),
+    )
+    google_api_key: str | None = Field(
+        default=None,
+        description=(
+            "API key for Google's generativelanguage endpoints. Required when "
+            "embedding_backend='gemini'."
+        ),
+    )
+    gemini_embedding_model: str = Field(
+        default="gemini-embedding-001",
+        description="Gemini embedding model id (path segment in the REST URL).",
     )
 
     # --- LLM provider ---
