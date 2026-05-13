@@ -32,6 +32,14 @@ dependencies = [
     "anthropic>=0.40",
 ]
 
+[project.optional-dependencies]
+# Pulls torch + sentence-transformers (~1GB+). Optional because the
+# deterministic reranker is sufficient for tests/dev and CI shouldn't
+# pay the install cost. Install with: ``uv sync --extra rerank``.
+rerank = [
+    "sentence-transformers>=3.0",
+]
+
 [dependency-groups]
 dev = [
     "ruff>=0.8",
@@ -122,6 +130,14 @@ disallow_untyped_defs = false
 # pgvector ships without a py.typed marker. We only use the SQLAlchemy
 # adapter; ignoring it lets the rest of the codebase stay strict.
 module = "pgvector.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# sentence-transformers is an optional extra (see [project.optional-dependencies]
+# rerank). CrossEncoderReranker imports it lazily and raises RerankerError if
+# absent, so mypy without the extra installed should not block — and shipping
+# stubs for torch + transformers is impractical anyway.
+module = "sentence_transformers.*"
 ignore_missing_imports = true
 
 # -----------------------------------------------------------------------------

@@ -18,32 +18,45 @@ in isolation:
 - :mod:`alphamind.retrieval.search.dense` — pgvector ANN candidates.
 - :mod:`alphamind.retrieval.search.fusion` — Reciprocal Rank Fusion.
 - :mod:`alphamind.retrieval.search.rerank` — :class:`Reranker` protocol +
-  deterministic stub.
+  Jaccard-overlap stub.
+- :mod:`alphamind.retrieval.search.cross_encoder` — sentence-transformers
+  cross-encoder backend (optional ``rerank`` extra).
+- :mod:`alphamind.retrieval.search.reranker_factory` — config-driven
+  reranker singleton (mirrors the embedder factory).
 - :mod:`alphamind.retrieval.search.pipeline` — orchestration.
 """
 
 from __future__ import annotations
 
+from alphamind.retrieval.search.cross_encoder import CrossEncoderReranker
 from alphamind.retrieval.search.dense import DenseHit, dense_search
 from alphamind.retrieval.search.fusion import FusedHit, reciprocal_rank_fusion
 from alphamind.retrieval.search.lexical import LexicalHit, lexical_search
 from alphamind.retrieval.search.pipeline import HybridSearch, SearchHit
 from alphamind.retrieval.search.rerank import (
     DeterministicReranker,
+    RerankCandidate,
+    RerankedHit,
     Reranker,
     RerankerError,
 )
+from alphamind.retrieval.search.reranker_factory import dispose_reranker, get_reranker
 
 __all__ = [
+    "CrossEncoderReranker",
     "DenseHit",
     "DeterministicReranker",
     "FusedHit",
     "HybridSearch",
     "LexicalHit",
+    "RerankCandidate",
+    "RerankedHit",
     "Reranker",
     "RerankerError",
     "SearchHit",
     "dense_search",
+    "dispose_reranker",
+    "get_reranker",
     "lexical_search",
     "reciprocal_rank_fusion",
 ]

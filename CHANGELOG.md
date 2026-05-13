@@ -41,6 +41,9 @@ All notable changes to this project will be documented in this file. The format 
 - Runbook `docs/runbooks/ask.md` covering the new CLI's invocation and failure modes.
 - `GeminiEmbedder`: real embedding backend calling Google's `gemini-embedding-001` REST endpoint over `httpx + tenacity + token-bucket`. Free-tier-aware defaults (20 req/s, well under the 1500 RPM ceiling), transparent slicing into the 100-input `batchEmbedContents` cap, and an `aclose()` lifecycle. Truncates the Matryoshka output to `EMBEDDING_DIM` via `outputDimensionality` and L2-renormalises so the unit-norm contract in the `Embedder` protocol still holds; uses `taskType=RETRIEVAL_DOCUMENT` for chunk encoding.
 - `google_api_key` and `gemini_embedding_model` settings; `EMBEDDING_BACKEND=gemini` selects the new backend. `dispose_embedder()` factory hook for shutting the HTTP client down cleanly.
+- `CrossEncoderReranker`: real reranker wrapping `sentence_transformers.CrossEncoder` behind the existing `Reranker` protocol, lazy-loading the model on first call and dispatching inference to a worker thread so the event loop stays free. `sentence-transformers` is shipped as the optional `rerank` extra (`uv sync --extra rerank`) so CI doesn't pay the ~1GB torch install cost.
+- `get_reranker()` / `dispose_reranker()` factory in `alphamind.retrieval.search.reranker_factory`, mirroring the embedder factory. Picks the backend from `RERANKER_BACKEND` config.
+- `reranker_backend` and `cross_encoder_model` settings (default model `cross-encoder/ms-marco-MiniLM-L-12-v2`, as ADR 0005 pins).
 
 ### Changed
 - `EdgarClient` no longer sends a fixed `Accept: application/json` header — the same client now hits both JSON endpoints under `data.sec.gov` and HTML/XML bodies under `www.sec.gov/Archives`.
