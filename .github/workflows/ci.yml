@@ -71,3 +71,49 @@ jobs:
           name: coverage-xml
           path: coverage.xml
           if-no-files-found: ignore
+
+  integration:
+    name: Integration tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        # Same image as the local docker-compose stack so the dev path and
+        # the CI path exercise the same pgvector + Postgres versions.
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: alphamind
+          POSTGRES_PASSWORD: alphamind
+          POSTGRES_DB: alphamind
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: "postgresql+asyncpg://alphamind:alphamind@localhost:5432/alphamind"
+      # The Settings model requires these even though the integration suite
+      # does not touch Redis or SEC EDGAR. Placeholder values keep the
+      # config validator happy.
+      REDIS_URL: "redis://localhost:6379/0"
+      SEC_USER_AGENT: "AlphaMind CI ci@example.com"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.11
+
+      - name: Install dependencies
+        run: uv sync --all-groups
+
+      - name: Apply migrations
+        run: uv run alembic upgrade head
+
+      - name: Run integration tests
+        run: uv run pytest -m integration -v
