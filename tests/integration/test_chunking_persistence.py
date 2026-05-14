@@ -33,16 +33,51 @@ _SAMPLE_HTML = b"""
 <html>
   <body>
     <p>Item 1. Business</p>
-    <p>We design, manufacture and market smartphones, personal computers,
-       tablets, wearables and accessories.</p>
+    <p>The Company designs, manufactures and markets smartphones, personal
+       computers, tablets, wearables and accessories, and sells a variety of
+       related services. The Company's products include iPhone, Mac, iPad,
+       AirPods, Apple TV, Apple Watch, Beats products, HomePod, iPod touch
+       and accessories. The Company's services include advertising,
+       AppleCare, cloud services, digital content, and payment services.
+       The Company sells its products and resells third-party products in
+       most of its major markets directly to consumers, businesses and
+       educational institutions through its retail and online stores and
+       its direct sales force. The Company also employs a variety of
+       indirect distribution channels, such as third-party cellular network
+       carriers, wholesalers, retailers and resellers. During 2024, the
+       Company's net sales through its direct and indirect distribution
+       channels accounted for approximately 38% and 62%, respectively, of
+       total net sales.</p>
     <p>Item 1A. Risk Factors</p>
     <p>The Company's business, reputation, results of operations, financial
        condition and stock price can be affected by a number of factors,
-       whether currently known or unknown.</p>
+       whether currently known or unknown, including those described
+       below. When any one or more of these risks materialize from time to
+       time, the Company's business, reputation, results of operations,
+       financial condition and stock price can be materially and adversely
+       affected. Because of the following factors, as well as other
+       factors affecting the Company's results of operations and financial
+       condition, past financial performance should not be considered to be
+       a reliable indicator of future performance, and investors should not
+       use historical trends to anticipate results or trends in future
+       periods. The Company's operations and performance depend
+       significantly on global and regional economic conditions and adverse
+       economic conditions can materially adversely affect the Company's
+       business, results of operations and financial condition.</p>
     <p>Item 7. Management's Discussion and Analysis</p>
-    <p>Total net sales for the year increased 2% to $383.3 billion. iPhone
-       net sales decreased 2% year over year. Services net sales reached a
-       new all-time annual record.</p>
+    <p>Total net sales for the year increased 2% to $383.3 billion compared
+       to the prior year. iPhone net sales decreased 2% year over year due
+       to lower iPhone net sales in markets outside of the United States,
+       partially offset by higher iPhone net sales in the United States.
+       Services net sales reached a new all-time annual record, increasing
+       9% year over year. Mac net sales decreased compared to the prior
+       year. iPad net sales decreased reflecting lower net sales of iPad
+       Pro and entry-level iPad. Wearables, Home and Accessories net sales
+       decreased compared to the prior year. The Company's effective tax
+       rate for 2024 was 24.1% compared to 14.7% for 2023. The increase in
+       the effective tax rate for 2024 was primarily due to a one-time
+       income tax charge related to a state aid decision by the European
+       General Court.</p>
   </body>
 </html>
 """
@@ -151,6 +186,9 @@ async def test_chunk_filing_is_idempotent_on_replay(
     second = await chunk_filing(storage=storage, session=db_session, filing_id=filing_id)
     await db_session.commit()
 
+    # Pin that we actually got chunks back — otherwise the equality below
+    # is a false positive (0 == 0).
+    assert first.chunks_written > 0
     # Same body → same chunks count. Second pass replaces the first.
     assert second.chunks_written == first.chunks_written
     assert second.chunks_replaced == first.chunks_written
