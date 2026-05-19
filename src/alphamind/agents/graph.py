@@ -16,7 +16,7 @@ PR can register sentiment/technical/risk without touching this file.
 from __future__ import annotations
 
 import logging
-from collections.abc import Mapping
+from collections.abc import AsyncIterator, Mapping
 from typing import Any
 
 from langgraph.graph import END, START, StateGraph
@@ -122,6 +122,29 @@ class ResearchGraph:
         # public surface honest without leaking ``Any`` to callers.
         result: AgentState = await self._compiled.ainvoke(state)
         return result
+
+    async def stream_updates(
+        self,
+        payload: GraphInput,
+    ) -> AsyncIterator[tuple[str, dict[str, Any]]]:
+        """Yield ``(node_name, state_update)`` pairs as each node completes.
+
+        Backs the FastAPI streaming endpoint: the API converts each
+        update into a Server-Sent Event payload. ``stream_mode="updates"``
+        emits only the delta each node returned, which is exactly the
+        payload the client needs — full state would re-send earlier
+        specialist reports on every event.
+
+        The LangGraph runtime preserves node order for sequential edges
+        and emits parallel-branch events as they complete (so two
+        specialists running concurrently surface in completion order,
+        not declaration order).
+        """
+
+        state = payload.to_state()
+        async for update in self._compiled.astream(state, stream_mode="updates"):
+            for node_name, state_update in update.items():
+                yield node_name, state_update
 
 
 def _route_to_specialists(available: set[str]) -> Any:

@@ -31,6 +31,9 @@ dependencies = [
     "numpy>=1.26",
     "anthropic>=0.40",
     "langgraph>=0.2.50",
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+    "sse-starlette>=2.1",
 ]
 
 [project.optional-dependencies]

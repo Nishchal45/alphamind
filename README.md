@@ -102,6 +102,21 @@ sentiment / technical / risk land in follow-up PRs and slot in via the
 shared `SpecialistBase`. Design rationale in [`docs/adr/0007-agent-graph-design.md`](docs/adr/0007-agent-graph-design.md);
 operational details in [`docs/runbooks/research.md`](docs/runbooks/research.md).
 
+### Running the API
+
+```bash
+make serve  # uvicorn --factory alphamind.api.app:create_app --reload
+curl -N -X POST http://localhost:8000/research \
+  -H "Content-Type: application/json" \
+  -d '{"query":"NVDA China exposure","as_of":"2024-12-31"}'
+```
+
+`POST /research` runs the agent graph and streams progress as Server-Sent
+Events (one event per node completion). `GET /healthz` and `GET /readyz`
+are k8s-shaped liveness / readiness probes. Design rationale in
+[`docs/adr/0008-fastapi-serving-and-sse.md`](docs/adr/0008-fastapi-serving-and-sse.md);
+operational details in [`docs/runbooks/api.md`](docs/runbooks/api.md).
+
 Example output:
 
 ```
@@ -119,7 +134,7 @@ CIK          TICKER     SEEN  WRITTEN  NAME
 - [x] Phase 2 — filing-body ingestion, finance-aware chunking, embeddings, hybrid retrieval (BM25 + pgvector + RRF + cross-encoder rerank) with a hard time-horizon filter at every stage
 - [ ] Phase 3 — LLM provider integration (Anthropic adapter shipped), real sentence-transformer embedder + cross-encoder rerank (shipped), LangGraph agent team (router + fundamentals specialist + synthesizer + critic shipped; remaining specialists in follow-ups)
 - [ ] Phase 4 — fine-tuned SLM on financial text (LoRA / QLoRA)
-- [ ] Phase 5 — FastAPI serving layer with streaming, caching, cost routing
+- [ ] Phase 5 — FastAPI serving layer with streaming (SSE shipped), caching, cost routing (caching and cost routing in follow-ups)
 - [ ] Phase 6 — backtest harness, evaluation set, public result dashboard
 
 ## Disclaimer

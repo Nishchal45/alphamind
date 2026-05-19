@@ -54,9 +54,16 @@ All notable changes to this project will be documented in this file. The format 
 - `scripts/research.py` — first agentic end-to-end demo of the project. Runs the LangGraph DAG against ingested filings with the same `--as-of` discipline as `ask.py`.
 - ADR 0007 documenting the agent-graph design (LangGraph, typed state, scaffolding, the renumber-before-LLM contract, LLM-judge critic, graph-wide fallback policy).
 - Runbook `docs/runbooks/research.md` covering invocation, expected output, and failure modes.
+- `alphamind.api` package: FastAPI app via `create_app()` factory and a `lifespan` that builds the `ResearchGraph` once and disposes engine + embedder on shutdown. Pydantic request / response schemas live in `alphamind.api.schemas`, separate from the agent dataclasses; converted at the boundary.
+- `POST /research` — runs the agent graph and streams progress as Server-Sent Events (`router-decision`, one `specialist-report` per specialist in completion order, `thesis`, `critic-report`, then `done` or `error`). The synthesizer's answer arrives as one event, not token-by-token; token streaming requires growing the `LLMClient` protocol and lands in a follow-up.
+- `GET /healthz` (liveness, no I/O) and `GET /readyz` (Postgres reachability probe via `SELECT 1`, returns `503` when the DB is unreachable).
+- `ResearchGraph.stream_updates()` — async iterator over `(node_name, state_update)` pairs from LangGraph's `astream(stream_mode="updates")`. The SSE adapter (`alphamind.api.sse`) converts these to typed event payloads.
+- `make serve` Makefile target running `uvicorn --factory alphamind.api.app:create_app --reload`.
+- ADR 0008 documenting FastAPI + SSE choices, why pydantic schemas are separate from the agent dataclasses, and what's deferred (token streaming, Redis cache, cost routing).
+- Runbook `docs/runbooks/api.md` covering invocation, event semantics, proxy gotchas, and failure modes.
 
 ### Changed
 - `EdgarClient` no longer sends a fixed `Accept: application/json` header — the same client now hits both JSON endpoints under `data.sec.gov` and HTML/XML bodies under `www.sec.gov/Archives`.
-- README roadmap: Phase 2 is now complete (chunker, embeddings, hybrid retrieval, cross-encoder rerank). Phase 3 is in progress — LLM provider integration shipped, real sentence-transformer embedder + cross-encoder rerank shipped, and the LangGraph skeleton + fundamentals specialist + synthesizer + critic now ship in this slice. Remaining specialists (sentiment, technical, risk) land in follow-up PRs.
+- README roadmap: Phase 2 is now complete (chunker, embeddings, hybrid retrieval, cross-encoder rerank). Phase 3's agent team is feature-complete on the SEC-filing axis (router, fundamentals + critic shipped here; sentiment + risk + technical-stub queued in the stacked PR). Phase 5's first slice now ships: FastAPI app, SSE streaming, health probes. Redis cache, cost routing, token streaming, auth all deferred.
 
 [Unreleased]: https://github.com/Nishchal45/alphamind/compare/HEAD...HEAD
