@@ -30,6 +30,7 @@ dependencies = [
     "pgvector>=0.3",
     "numpy>=1.26",
     "anthropic>=0.40",
+    "langgraph>=0.2.50",
 ]
 
 [project.optional-dependencies]

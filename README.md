@@ -85,6 +85,23 @@ LLM_BACKEND=anthropic ANTHROPIC_API_KEY=sk-ant-... \
 
 This is the first end-to-end demo — BM25 retrieval over your ingested filings + a Claude call that's instructed to answer using only the cited sources. Without an API key set, the default `LLM_BACKEND=echo` returns a stub so the rest of the pipeline can still be exercised. Operational details in [`docs/runbooks/ask.md`](docs/runbooks/ask.md).
 
+### Running the agentic pipeline
+
+`scripts/ask.py` is the flat BM25 → LLM smoke test. For the multi-agent
+pipeline — router → specialists → synthesizer → critic — use:
+
+```bash
+LLM_BACKEND=anthropic ANTHROPIC_API_KEY=sk-ant-... \
+  uv run python scripts/research.py \
+    --query "Bull and bear case for NVDA going into Q3 2026" \
+    --as-of 2024-12-31
+```
+
+The graph is wired with the fundamentals specialist in this slice;
+sentiment / technical / risk land in follow-up PRs and slot in via the
+shared `SpecialistBase`. Design rationale in [`docs/adr/0007-agent-graph-design.md`](docs/adr/0007-agent-graph-design.md);
+operational details in [`docs/runbooks/research.md`](docs/runbooks/research.md).
+
 Example output:
 
 ```
@@ -100,7 +117,7 @@ CIK          TICKER     SEEN  WRITTEN  NAME
 
 - [x] Phase 1 — repo scaffolding, Postgres + pgvector, SEC EDGAR metadata ingestion
 - [x] Phase 2 — filing-body ingestion, finance-aware chunking, embeddings, hybrid retrieval (BM25 + pgvector + RRF + cross-encoder rerank) with a hard time-horizon filter at every stage
-- [ ] Phase 3 — LLM provider integration (Anthropic adapter shipped), real sentence-transformer embedder + cross-encoder rerank, LangGraph agent team (router, specialists, synthesizer, critic)
+- [ ] Phase 3 — LLM provider integration (Anthropic adapter shipped), real sentence-transformer embedder + cross-encoder rerank (shipped), LangGraph agent team (router + fundamentals specialist + synthesizer + critic shipped; remaining specialists in follow-ups)
 - [ ] Phase 4 — fine-tuned SLM on financial text (LoRA / QLoRA)
 - [ ] Phase 5 — FastAPI serving layer with streaming, caching, cost routing
 - [ ] Phase 6 — backtest harness, evaluation set, public result dashboard
