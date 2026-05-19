@@ -1,16 +1,17 @@
 """LangGraph DAG wiring + factory.
 
 ```
-START -> router -> [fundamentals, ...other specialists] -> synthesizer -> critic -> END
+START -> router -> [selected specialists] -> synthesizer -> critic -> END
 ```
 
 The router decides which specialists run; specialists that aren't
 selected are short-circuited via a conditional edge so we don't pay the
 LLM cost on agents whose output the synthesizer will ignore anyway.
 
-Only :class:`FundamentalsSpecialist` is implemented in this slice. The
-graph is built dynamically from a ``specialists`` mapping so the next
-PR can register sentiment/technical/risk without touching this file.
+All four specialists from the architecture map are registered:
+fundamentals, sentiment, risk, and technical. The technical specialist
+is a no-data stub until the market-data adapter exists; see its
+class docstring for the rationale.
 """
 
 from __future__ import annotations
@@ -23,7 +24,12 @@ from langgraph.graph import END, START, StateGraph
 
 from alphamind.agents.critic import CriticNode
 from alphamind.agents.router import RouterNode
-from alphamind.agents.specialists import FundamentalsSpecialist
+from alphamind.agents.specialists import (
+    FundamentalsSpecialist,
+    RiskSpecialist,
+    SentimentSpecialist,
+    TechnicalSpecialist,
+)
 from alphamind.agents.specialists.base import SpecialistBase
 from alphamind.agents.state import AgentState, GraphInput, SpecialistName
 from alphamind.agents.synthesizer import SynthesizerNode
@@ -41,14 +47,16 @@ def _default_specialists(
     llm: LLMClient,
     search: HybridSearch,
 ) -> dict[SpecialistName, SpecialistBase]:
-    """Return the specialists shipped in this slice.
+    """Return the specialists registered with the graph by default.
 
-    Add other specialists here as they land. The keys must match
-    :data:`alphamind.agents.state.ALL_SPECIALISTS`.
+    Keys must match :data:`alphamind.agents.state.ALL_SPECIALISTS`.
     """
 
     return {
         "fundamentals": FundamentalsSpecialist(llm=llm, search=search),
+        "sentiment": SentimentSpecialist(llm=llm, search=search),
+        "risk": RiskSpecialist(llm=llm, search=search),
+        "technical": TechnicalSpecialist(llm=llm, search=search),
     }
 
 
