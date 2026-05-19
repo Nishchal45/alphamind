@@ -1,7 +1,7 @@
 .DEFAULT_GOAL := help
 .PHONY: help install dev lint format typecheck test test-integration test-cov test-all \
 	ci clean compose-up compose-down compose-logs \
-	migrate migration downgrade db-reset healthcheck
+	migrate migration downgrade db-reset healthcheck serve
 
 UV := uv
 
@@ -75,3 +75,6 @@ db-reset: ## Drop and recreate the postgres volume (destructive)
 
 healthcheck: ## Verify postgres, pgvector, and redis are reachable
 	$(UV) run python scripts/healthcheck.py
+
+serve: ## Run the FastAPI app locally with autoreload
+	$(UV) run uvicorn --factory alphamind.api.app:create_app --reload --host 0.0.0.0 --port 8000

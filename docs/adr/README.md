@@ -29,3 +29,4 @@ An ADR starts in `proposed` status, moves to `accepted` when merged, and may lat
 - [0005 — Retrieval pipeline: chunker, embedder, hybrid search](0005-retrieval-pipeline-design.md)
 - [0006 — LLM provider integration](0006-llm-provider-integration.md)
 - [0007 — Agent graph design](0007-agent-graph-design.md)
+- [0008 — FastAPI serving + Server-Sent Events](0008-fastapi-serving-and-sse.md)
