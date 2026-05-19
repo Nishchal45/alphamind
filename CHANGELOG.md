@@ -46,9 +46,17 @@ All notable changes to this project will be documented in this file. The format 
 - `reranker_backend` and `cross_encoder_model` settings (default model `cross-encoder/ms-marco-MiniLM-L-12-v2`, as ADR 0005 pins).
 - Integration test suite under `tests/integration/` covering the SQL paths the unit suite can't reach: chunk persistence + generated `text_tsv` materialisation, embedding write-back into `vector(384)`, HNSW cosine ANN, `ts_rank_cd` lexical ranking, and the end-to-end `HybridSearch.search()` pipeline. The time-horizon (`as_of`) filter is exercised at every layer where it appears.
 - CI gains an `integration` job that provisions Postgres + pgvector via a service container, applies migrations, and runs `pytest -m integration`. Unit tests continue to run on Python 3.11 and 3.12 in a separate job.
+- `alphamind.agents` package: LangGraph DAG (`router -> specialists -> synthesizer -> critic`) with typed state. Frozen-dataclass leaf records (`Citation`, `Claim`, `SpecialistReport`, `Thesis`, `CriticReport`) for immutability and to keep pydantic off the hot path; specialist reports merge via a concatenation reducer so parallel branches converge correctly.
+- `RouterNode`: LLM-based intent classification that returns a `RouterDecision` (which specialists to run + a one-sentence rationale). Tolerant JSON extraction (`alphamind.agents.json_utils`) strips fenced blocks, balances braces, and validates schema; falls back to running every specialist if the response can't be parsed.
+- `SpecialistBase` scaffold owning retrieval, hydration, prompting, parsing, and fallback construction. Specialists differ only in `name`, `system_prompt`, and `query_augmentation`. First concrete subclass: `FundamentalsSpecialist`, focused on revenue / margins / segments / guidance.
+- `SynthesizerNode`: merges per-specialist citation pools into one renumbered list (deduped by `chunk_id`) before the LLM is asked to compose the bull / bear / answer thesis. Renumbering keeps the critic's view of citations canonical.
+- `CriticNode`: LLM-judge with structured JSON output that flags unsupported claims by re-reading the thesis against the merged source pool. The critic is a check, not a gate — its own failures degrade to an empty `unsupported` list with the failure noted in `notes`.
+- `scripts/research.py` — first agentic end-to-end demo of the project. Runs the LangGraph DAG against ingested filings with the same `--as-of` discipline as `ask.py`.
+- ADR 0007 documenting the agent-graph design (LangGraph, typed state, scaffolding, the renumber-before-LLM contract, LLM-judge critic, graph-wide fallback policy).
+- Runbook `docs/runbooks/research.md` covering invocation, expected output, and failure modes.
 
 ### Changed
 - `EdgarClient` no longer sends a fixed `Accept: application/json` header — the same client now hits both JSON endpoints under `data.sec.gov` and HTML/XML bodies under `www.sec.gov/Archives`.
-- README roadmap: Phase 2 is now complete (chunker, embeddings, hybrid retrieval, cross-encoder rerank).
+- README roadmap: Phase 2 is now complete (chunker, embeddings, hybrid retrieval, cross-encoder rerank). Phase 3 is in progress — LLM provider integration shipped, real sentence-transformer embedder + cross-encoder rerank shipped, and the LangGraph skeleton + fundamentals specialist + synthesizer + critic now ship in this slice. Remaining specialists (sentiment, technical, risk) land in follow-up PRs.
 
 [Unreleased]: https://github.com/Nishchal45/alphamind/compare/HEAD...HEAD
