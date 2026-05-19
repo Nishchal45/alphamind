@@ -21,9 +21,22 @@ question + as-of date
   → stdout: router decision, per-specialist counts, thesis, sources, critic notes
 ```
 
-Only the fundamentals specialist ships in this slice. The graph
-infrastructure is set up so the remaining specialists (sentiment,
-technical, risk) drop in as 30-line subclasses of `SpecialistBase`.
+All four specialists are registered with the graph:
+
+- **fundamentals** — revenue, margins, segments, guidance. Augmentation
+  pulls retrieval toward MD&A / financial-statement language.
+- **sentiment** — qualitative tone, hedging, outlook language. Works
+  from MD&A and 8-K narrative. Earnings-transcript ingestion isn't
+  built yet, which is the strongest sentiment signal; the system
+  prompt is explicit about that limitation.
+- **risk** — Item 1A risk factors, legal proceedings, concentration
+  risks. Augmentation targets risk-shaped passages.
+- **technical** — no-data stub. The market-data adapter for OHLCV
+  bars and corporate actions isn't built yet, and pretending to do
+  technical analysis from 10-K boilerplate is actively misleading.
+  This specialist is registered (so the router can route to it) but
+  returns an empty report without calling the LLM. Drops the stub
+  when the adapter lands.
 
 ## Prerequisites
 
@@ -106,8 +119,9 @@ no unsupported claims flagged.
 
 | Symptom | Likely cause | Action |
 | --- | --- | --- |
-| `specialists produced 0 report(s)` | Router picked specialists that aren't implemented yet (only `fundamentals` ships in this slice) | Wait for the next agent-team PR, or ask a question the router routes to fundamentals |
-| `(fundamentals specialist produced no findings: retrieval returned no candidates)` | No chunks matched even after query augmentation | Confirm chunks exist for the ticker; widen `--as-of` |
+| `specialists produced 0 report(s)` | Router skipped to synthesizer (rare; only happens when the router picks a specialist name not in the registry) | Check the router rationale in the printed output |
+| `(technical specialist produced no findings: market-data adapter is not built yet ...)` | Expected — the technical specialist is a stub | Either ignore (the router likely shouldn't have picked it) or treat as a TODO for the market-data adapter |
+| `(<specialist> specialist produced no findings: retrieval returned no candidates)` | No chunks matched even after query augmentation | Confirm chunks exist for the ticker; widen `--as-of` |
 | `(fundamentals specialist produced no findings: could not parse specialist response: ...)` | LLM emitted non-JSON or wrong-shape JSON | Re-run; if the model is consistently bad at JSON, try a stronger `LLM_MODEL` |
 | Critic flags everything as unsupported | LLM-judge over-strictness, or specialist hallucinated citations | Manually verify against the source list; consider tightening the specialist system prompt |
 | `synthesizer fallback: ...` printed | Synthesizer's response didn't parse; thesis comes back with the failure in its answer field | Re-run; check the LLM_MODEL is configured to a model that handles structured output reliably |

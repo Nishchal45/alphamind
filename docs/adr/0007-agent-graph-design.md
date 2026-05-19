@@ -106,6 +106,35 @@ Hard filters land in the follow-up that also adds the remaining
 specialists, when we have enough cross-specialist usage to choose
 filter shapes from data instead of guessing.
 
+#### Technical specialist as a no-data stub
+
+Three specialists land in the follow-up — ``RiskSpecialist``,
+``SentimentSpecialist``, and ``TechnicalSpecialist`` — but the
+technical agent has no usable data today. Price action, momentum,
+volatility, and volume signals all require OHLCV bars and corporate
+actions; the architecture map calls out a market-data adapter, but
+ingestion currently covers EDGAR only.
+
+The pragmatic options were:
+
+1. **Skip technical entirely** until the adapter exists. Cleanest, but
+   reshuffles ``ALL_SPECIALISTS`` and the router prompt when the
+   adapter lands.
+2. **Pretend by querying the filing corpus** with technical-flavoured
+   augmentation. This actively returns forward-looking-statement
+   boilerplate and hallucinates "technical" signals out of legal
+   disclaimers. Worse than nothing.
+3. **Register as a stub.** Specialist exists, satisfies the
+   ``SpecialistBase`` constructor signature, returns an empty
+   ``SpecialistReport`` with an honest "no-data" reason. No LLM call,
+   no retrieval, no cost. The router can still route to it; the
+   synthesizer already handles empty reports.
+
+(3) is what ships. The override is one method on the subclass —
+``async def _run(...)`` returns immediately. When the market-data
+adapter exists, the override goes away and the class falls through to
+the standard pipeline.
+
 ### Router: structured JSON, not tool use
 
 The router returns ``{"specialists": [...], "rationale": "..."}``
@@ -174,7 +203,7 @@ the caller, not in the model.
 ## Consequences
 
 - ``scripts/research.py`` is the first agentic end-to-end demo of the
-  project: router → fundamentals → synthesizer → critic, every call
+  project: router → specialists → synthesizer → critic, every call
   going through the :class:`LLMClient` protocol. With
   ``LLM_BACKEND=anthropic`` and a key set, it runs against real
   models; with the defaults it runs entirely offline with stubbed
@@ -182,10 +211,12 @@ the caller, not in the model.
 - ``scripts/ask.py`` keeps working unchanged. Two scripts, two
   workflows: ``ask.py`` is the flat BM25 + LLM smoke test; ``research.py``
   is the agentic pipeline. The boundary is explicit.
-- The remaining three specialists are ~30-line subclasses of
-  :class:`SpecialistBase`. The next PR can also lift query
-  augmentation into section / form filters once we know what filter
-  shapes the specialists actually want.
+- All four specialists are registered. Fundamentals, sentiment, and
+  risk each ship ~30 lines on top of :class:`SpecialistBase`;
+  technical ships as a stub and activates when the market-data
+  adapter lands. Lifting query augmentation into section / form
+  filters lands when cross-specialist usage suggests the right
+  filter shapes.
 - Tool use, streaming, and cost aggregation are still on the
   follow-up list. The graph runs without them today; they fold in
   cleanly when the protocol grows.

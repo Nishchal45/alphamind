@@ -97,9 +97,9 @@ LLM_BACKEND=anthropic ANTHROPIC_API_KEY=sk-ant-... \
     --as-of 2024-12-31
 ```
 
-The graph is wired with the fundamentals specialist in this slice;
-sentiment / technical / risk land in follow-up PRs and slot in via the
-shared `SpecialistBase`. Design rationale in [`docs/adr/0007-agent-graph-design.md`](docs/adr/0007-agent-graph-design.md);
+The graph registers all four specialists (fundamentals, sentiment, risk,
+and a no-data technical stub). The router decides which subset runs for
+a given question. Design rationale in [`docs/adr/0007-agent-graph-design.md`](docs/adr/0007-agent-graph-design.md);
 operational details in [`docs/runbooks/research.md`](docs/runbooks/research.md).
 
 Example output:
@@ -117,7 +117,7 @@ CIK          TICKER     SEEN  WRITTEN  NAME
 
 - [x] Phase 1 — repo scaffolding, Postgres + pgvector, SEC EDGAR metadata ingestion
 - [x] Phase 2 — filing-body ingestion, finance-aware chunking, embeddings, hybrid retrieval (BM25 + pgvector + RRF + cross-encoder rerank) with a hard time-horizon filter at every stage
-- [ ] Phase 3 — LLM provider integration (Anthropic adapter shipped), real sentence-transformer embedder + cross-encoder rerank (shipped), LangGraph agent team (router + fundamentals specialist + synthesizer + critic shipped; remaining specialists in follow-ups)
+- [x] Phase 3 — LLM provider integration (Anthropic), real sentence-transformer embedder + cross-encoder rerank, LangGraph agent team (router, fundamentals / sentiment / risk specialists + a registered no-data technical stub, synthesizer, critic). Streaming, tool use, cost aggregation, and the market-data adapter that activates the technical specialist land later.
 - [ ] Phase 4 — fine-tuned SLM on financial text (LoRA / QLoRA)
 - [ ] Phase 5 — FastAPI serving layer with streaming, caching, cost routing
 - [ ] Phase 6 — backtest harness, evaluation set, public result dashboard

@@ -54,9 +54,14 @@ All notable changes to this project will be documented in this file. The format 
 - `scripts/research.py` — first agentic end-to-end demo of the project. Runs the LangGraph DAG against ingested filings with the same `--as-of` discipline as `ask.py`.
 - ADR 0007 documenting the agent-graph design (LangGraph, typed state, scaffolding, the renumber-before-LLM contract, LLM-judge critic, graph-wide fallback policy).
 - Runbook `docs/runbooks/research.md` covering invocation, expected output, and failure modes.
+- `RiskSpecialist` — Item 1A risk-factor / legal-proceedings analyst. Query augmentation pulls retrieval toward risk-shaped passages without requiring section / form filters.
+- `SentimentSpecialist` — qualitative tone analyst working from MD&A and 8-K narrative. The system prompt is explicit that the stronger signal (earnings transcripts) is not yet ingested, so the agent stays honest about what it can and cannot infer.
+- `TechnicalSpecialist` — registered no-data stub. Returns an empty `SpecialistReport` without retrieval or LLM cost until the market-data adapter exists. Same constructor signature as the others, so graph wiring is uniform.
+- All four specialists registered in `alphamind.agents.graph._default_specialists`. The router can fan out to any subset; the synthesizer treats empty reports the same as full ones.
+- Shared test fixtures in `tests/unit/agents/specialists/conftest.py` (`FakeSearch`, `FakeSession`, `FakeChunk`, helpers) so per-specialist test files focus on their domain-specific surface.
 
 ### Changed
 - `EdgarClient` no longer sends a fixed `Accept: application/json` header — the same client now hits both JSON endpoints under `data.sec.gov` and HTML/XML bodies under `www.sec.gov/Archives`.
-- README roadmap: Phase 2 is now complete (chunker, embeddings, hybrid retrieval, cross-encoder rerank). Phase 3 is in progress — LLM provider integration shipped, real sentence-transformer embedder + cross-encoder rerank shipped, and the LangGraph skeleton + fundamentals specialist + synthesizer + critic now ship in this slice. Remaining specialists (sentiment, technical, risk) land in follow-up PRs.
+- README roadmap: Phase 2 is now complete (chunker, embeddings, hybrid retrieval, cross-encoder rerank). Phase 3 is now complete on the agent-team axis — router, all four specialists (fundamentals, sentiment, risk, and a technical stub), synthesizer, and critic are registered with the graph. Remaining Phase 3 work that doesn't block a research run: streaming, tool use, and cost aggregation (called out as deferred in ADR 0006 and 0007); the market-data adapter that lets the technical specialist drop its stub.
 
 [Unreleased]: https://github.com/Nishchal45/alphamind/compare/HEAD...HEAD
