@@ -96,11 +96,24 @@ CIK          TICKER     SEEN  WRITTEN  NAME
 
 `SEEN` is what EDGAR returned in the recent-filings window; `WRITTEN` is how many passed the form filter and got upserted. Operational details in [`docs/runbooks/ingest-edgar.md`](docs/runbooks/ingest-edgar.md).
 
+### Running the agent team
+
+Phase 3 wires the router → fundamentals specialist → synthesizer → critic DAG behind a CLI:
+
+```bash
+LLM_BACKEND=anthropic ANTHROPIC_API_KEY=sk-ant-... \
+  uv run python scripts/research.py \
+    --query "What's the bull and bear case on NVDA's China revenue concentration?" \
+    --as-of 2024-12-31
+```
+
+The output is a structured bull / bear thesis with chunk-level citations, the critic's flagged issues, the source pool, and per-node token usage. Operational details in [`docs/runbooks/research.md`](docs/runbooks/research.md).
+
 ## Roadmap
 
 - [x] Phase 1 — repo scaffolding, Postgres + pgvector, SEC EDGAR metadata ingestion
 - [x] Phase 2 — filing-body ingestion, finance-aware chunking, embeddings, hybrid retrieval (BM25 + pgvector + RRF + cross-encoder rerank) with a hard time-horizon filter at every stage
-- [ ] Phase 3 — LLM provider integration (Anthropic adapter shipped), real sentence-transformer embedder + cross-encoder rerank, LangGraph agent team (router, specialists, synthesizer, critic)
+- [~] Phase 3 — LLM provider integration (Anthropic adapter shipped), real sentence-transformer embedder + cross-encoder rerank shipped, LangGraph agent team partly shipped: router + fundamentals specialist + synthesizer + critic via [`scripts/research.py`](scripts/research.py); sentiment / technical / risk specialists still to land
 - [ ] Phase 4 — fine-tuned SLM on financial text (LoRA / QLoRA)
 - [ ] Phase 5 — FastAPI serving layer with streaming, caching, cost routing
 - [ ] Phase 6 — backtest harness, evaluation set, public result dashboard
