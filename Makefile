@@ -77,4 +77,7 @@ healthcheck: ## Verify postgres, pgvector, and redis are reachable
 	$(UV) run python scripts/healthcheck.py
 
 eval: ## Run the agent eval harness against the golden set
-	$(UV) run python scripts/eval.py --golden-set evals/golden_set.yaml --out evals/report.json
+	$(UV) run python scripts/eval.py \
+		--golden-set evals/golden_set.yaml \
+		--thresholds evals/thresholds.yaml \
+		--out evals/report.json

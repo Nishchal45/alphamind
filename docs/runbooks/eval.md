@@ -1,8 +1,9 @@
 # Runbook — `scripts/eval.py` / `make eval`
 
-The first slice of the Phase 6 eval harness. Runs the research DAG
-across a YAML golden set and writes a JSON report with six metrics
-per case plus an aggregate. The harness *measures*; it does not gate.
+The Phase 6 eval harness. Runs the research DAG across a YAML golden
+set and writes a JSON report with six metrics per case plus an
+aggregate. When `--thresholds` is supplied, the CLI gates on the
+aggregate and exits non-zero on any violation.
 
 See [ADR 0008](../adr/0008-eval-harness-design.md) for the design.
 
@@ -39,13 +40,16 @@ thesis, so the report only proves the plumbing works.
 
 ## Common invocations
 
-The default golden set + report path:
+The default golden set + thresholds (gates the run):
 
 ```bash
 make eval
 ```
 
-Or, with explicit paths:
+`make eval` passes `--thresholds evals/thresholds.yaml` so the exit
+code reflects metric violations as well as case failures.
+
+Explicit paths (e.g. measuring without gating):
 
 ```bash
 uv run python scripts/eval.py \
@@ -53,13 +57,22 @@ uv run python scripts/eval.py \
   --out evals/report.json
 ```
 
-Different golden set (e.g., a per-PR regression set):
+Custom golden set + custom thresholds (e.g. per-PR regression set):
 
 ```bash
 uv run python scripts/eval.py \
   --golden-set evals/regression_2026q2.yaml \
+  --thresholds evals/strict_thresholds.yaml \
   --out evals/regression_2026q2.json
 ```
+
+### Exit codes
+
+| Exit | Meaning |
+| --- | --- |
+| 0   | Every case ran cleanly and (if thresholds were supplied) every metric is inside its bound. |
+| 1   | At least one case raised during graph invocation. Check `per_case[i].failure`. |
+| 2   | Every case ran, but at least one aggregate metric is outside its threshold. |
 
 ## Reading the output
 
@@ -85,7 +98,25 @@ counts, the failure string if any.
 
 `(not measured: 0 cases supplied this hint)` means no case in the
 golden set carried that field. It's an honest signal: we didn't grade
-the question, so don't read it as a 0%.
+the question, so don't read it as a 0%. Thresholds on unmeasured
+metrics are skipped, not failed.
+
+When `--thresholds` is supplied, a second block follows:
+
+```
+Threshold check
+---------------
+  ✗ citation_coverage: 0.620 below minimum threshold 0.800
+  ✗ hallucination_rate: 0.350 above maximum threshold 0.200
+```
+
+Or, on a clean run:
+
+```
+Threshold check
+---------------
+  all thresholds met.
+```
 
 ## Writing a golden case
 
@@ -121,6 +152,28 @@ Reminders:
 - `required_chunk_ids` is the most fragile field — re-chunking a
   filing renumbers chunks. Refresh these IDs whenever the chunker
   changes.
+
+## Editing thresholds
+
+The shipped `evals/thresholds.yaml` gates on the aggregate (mean
+across cases). Each entry pins exactly one of `minimum` / `maximum`:
+
+```yaml
+thresholds:
+  - metric: citation_coverage
+    minimum: 0.80
+  - metric: hallucination_rate
+    maximum: 0.20
+```
+
+Reminders:
+
+- The metric name must match one of the six harness metrics. Unknown
+  names are rejected by the loader.
+- Two-sided gates aren't supported — every metric is one-sided.
+- Duplicates are rejected.
+- Tighten thresholds when the harness has enough runs that you know
+  the natural variance. The shipped defaults are conservative.
 
 ## Failure modes
 

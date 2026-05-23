@@ -1,0 +1,56 @@
+# Threshold gates for the AlphaMind eval harness.
+#
+# Each entry pins exactly one of `minimum` (mean must be >= minimum)
+# or `maximum` (mean must be <= maximum). All six harness metrics are
+# one-sided by intent — coverage / recall / validity want high numbers,
+# rate metrics want low — so two-sided gates aren't supported.
+#
+# The check is over the AGGREGATE mean across the golden set, not
+# per-case. Per-case spikes are interesting but noisier; the aggregate
+# is what CI gates on.
+#
+# A metric whose aggregate has n == 0 (no case supplied the hint it
+# depends on) is skipped, not failed.
+#
+# See docs/runbooks/eval.md and ADR 0008 for what each metric means
+# and why the defaults are where they are.
+
+thresholds:
+  # Structural invariant: specialist + synthesizer mechanically drop
+  # invalid cites, so this should always be 1.0. If it isn't, the
+  # structural-check layer regressed and the citation contract is
+  # broken. Hard gate.
+  - metric: citation_validity
+    minimum: 1.0
+
+  # 80% of thesis claims should carry at least one citation. Lower
+  # than this and the synthesizer is producing assertions without
+  # backing — either its prompt drifted or the specialists aren't
+  # producing enough cited findings to draw from.
+  - metric: citation_coverage
+    minimum: 0.80
+
+  # Critic should not flag more than 20% of claims as unsupported on
+  # average. This is the noisiest metric (one LLM-judgement call per
+  # case) so the bar isn't aggressive; we'll tighten when the harness
+  # has more runs and we know the natural variance.
+  - metric: hallucination_rate
+    maximum: 0.20
+
+  # Contradictions across a single thesis should be rare — if the
+  # synthesizer is producing self-contradictions more than 1 in 10
+  # claims, the prompt or the specialist findings need attention.
+  - metric: contradiction_rate
+    maximum: 0.10
+
+  # Half of the expected topics should land in the synthesized text on
+  # average. Topic_recall depends on the case supplying expected
+  # topics; the threshold only fires when at least one case did.
+  - metric: topic_recall
+    minimum: 0.50
+
+  # Half of the required chunk ids should be cited on average. Coarse
+  # gate — see ADR 0008 and the runbook on why required_chunk_ids is
+  # the most fragile field in a golden case.
+  - metric: chunk_recall
+    minimum: 0.50
