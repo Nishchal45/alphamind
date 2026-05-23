@@ -240,3 +240,75 @@ async def test_router_omitting_fundamentals_still_runs_it(
 
     specialists_seen = {f.specialist for f in result["findings"]}
     assert specialists_seen == {"fundamentals", "risk"}
+
+
+async def test_dag_fans_out_to_sentiment_and_skips_technical_cleanly(
+    sample_sources: list[Source],
+) -> None:
+    """Router picks sentiment + technical alongside fundamentals.
+
+    Sentiment runs an LLM call and produces findings; the technical stub
+    short-circuits before retrieval or LLM. Both must fan in cleanly at
+    the synthesizer.
+    """
+
+    router_resp = json.dumps(
+        {
+            "primary": "sentiment",
+            "specialists": ["fundamentals", "sentiment", "technical"],
+            "rationale": "Outlook tone + price posture question.",
+        }
+    )
+    fundamentals_resp = json.dumps(
+        {"findings": [{"claim": "Margin context.", "cited_chunk_ids": [102]}]}
+    )
+    sentiment_resp = json.dumps(
+        {
+            "findings": [
+                {
+                    "claim": "Management hedges China commentary.",
+                    "cited_chunk_ids": [103],
+                }
+            ]
+        }
+    )
+    synthesizer_resp = json.dumps(
+        {
+            "summary": "Mixed posture.",
+            "bull_case": [{"claim": "Margins.", "cited_chunk_ids": [102]}],
+            "bear_case": [{"claim": "China tone.", "cited_chunk_ids": [103]}],
+        }
+    )
+    critic_resp = json.dumps({"issues": []})
+
+    client = SystemKeyedLLMClient(
+        responses_by_marker={
+            "routing layer": router_resp,
+            "fundamentals specialist": fundamentals_resp,
+            "sentiment specialist": sentiment_resp,
+            "synthesizer": synthesizer_resp,
+            "critic": critic_resp,
+        }
+    )
+
+    async def retrieve(*, query: str, as_of: date, top_k: int) -> list[Source]:
+        return sample_sources
+
+    graph = build_research_graph(llm=client, retrieve=retrieve)
+    result = await graph.ainvoke(
+        {
+            "query": "How is management framing China going into year-end?",
+            "as_of": date(2024, 12, 31),
+            "top_k": 3,
+        }
+    )
+
+    # Sentiment emitted real findings; technical emitted none (stub).
+    specialists_seen = {f.specialist for f in result["findings"]}
+    assert "sentiment" in specialists_seen
+    assert "technical" not in specialists_seen
+
+    # Technical never called the LLM, so it doesn't show up in usage.
+    nodes_in_usage = {u.node for u in result["usage"]}
+    assert "technical" not in nodes_in_usage
+    assert {"router", "sentiment", "synthesizer", "critic"} <= nodes_in_usage
