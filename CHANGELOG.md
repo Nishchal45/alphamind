@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file. The format 
 ## [Unreleased]
 
 ### Added
+- `alphamind.eval` package: in-repo eval harness for the research DAG. Six metrics (`citation_coverage`, `citation_validity`, `hallucination_rate`, `contradiction_rate`, `topic_recall`, `chunk_recall`) implemented as pure functions over a finished `ResearchState`. The runner accepts a pre-built compiled graph and walks a `Sequence[EvalCase]`, so tests run against a stub-wired graph while the production CLI wires the real one.
+- Golden-set format and loader: YAML at `evals/golden_set.yaml`, parsed via `alphamind.eval.load_golden_set` with eager validation (missing required fields, bad `as_of` format, duplicate ids all raise `GoldenSetError`). Four seed cases covering bull/bear, fundamentals-heavy, and risk-heavy questions.
+- `scripts/eval.py` + `make eval`: wires the production graph (`HybridSearch` + LLM factory) behind the runner. Writes a JSON report with per-case `CaseResult` records and an aggregate `MetricSummary` per metric; prints a human-readable summary. Exit code reflects whether any case raised, not whether metrics passed a threshold (the harness measures, it does not gate today).
+- `pyyaml` added to `dependencies` and `types-pyyaml` to the dev group.
+- ADR 0008 documenting the eval-harness design: metric definitions, golden-set format choices, why YAML over JSON, why the runner doesn't build the graph itself, what's not covered yet (pass/fail gates, historical backtest, dashboards).
+- Runbook `docs/runbooks/eval.md` covering the CLI, output format, how to author a golden case, and the failure-mode catalogue.
+
 - Risk specialist agent (`alphamind.agents.specialists.risk`) — second specialist in the LangGraph DAG. Same retrieval surface and citation contract as the fundamentals specialist; its system prompt biases the LLM toward Item 1A risk factors, Item 3 legal proceedings, Item 7A market-risk disclosures, and regulatory/geopolitical exposure.
 - Router → specialist edge converted to a real fan-out: `_route_specialists` reads `state['intent'].specialists` and returns the list of wired specialists to run in parallel. `fundamentals` is always included as a safety net so the synthesizer always has at least one set of findings to work from. LangGraph fans in at the synthesizer once every selected specialist completes.
 - Shared `alphamind.agents.specialists._base.make_specialist_node` factory: the JSON-parsing, citation-validation, and state-accumulator plumbing now lives in one place, so each concrete specialist (`fundamentals.py`, `risk.py`) is a thin wrapper binding its prompt and name. Adding sentiment / technical will be the same pattern.

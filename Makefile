@@ -1,7 +1,7 @@
 .DEFAULT_GOAL := help
 .PHONY: help install dev lint format typecheck test test-integration test-cov test-all \
 	ci clean compose-up compose-down compose-logs \
-	migrate migration downgrade db-reset healthcheck
+	migrate migration downgrade db-reset healthcheck eval
 
 UV := uv
 
@@ -75,3 +75,6 @@ db-reset: ## Drop and recreate the postgres volume (destructive)
 
 healthcheck: ## Verify postgres, pgvector, and redis are reachable
 	$(UV) run python scripts/healthcheck.py
+
+eval: ## Run the agent eval harness against the golden set
+	$(UV) run python scripts/eval.py --golden-set evals/golden_set.yaml --out evals/report.json

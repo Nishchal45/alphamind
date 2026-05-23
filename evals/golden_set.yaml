@@ -1,0 +1,60 @@
+# Golden set for the AlphaMind eval harness.
+#
+# Each case is graded on six metrics (see docs/runbooks/eval.md and ADR 0008):
+# citation_coverage, citation_validity, hallucination_rate,
+# contradiction_rate, topic_recall, chunk_recall.
+#
+# expected_topics and required_chunk_ids are both optional hints. A
+# case can leave either empty and only the metrics that don't depend
+# on it will be scored.
+#
+# Chunk IDs are stable across re-ingest only if the underlying filing
+# isn't re-chunked. Treat required_chunk_ids as a coarse hint, not a
+# strict expectation — when you re-run after a chunker change, expect
+# this metric to wobble until you refresh the IDs.
+
+cases:
+  - id: nvda-china-2024-q4
+    query: "What's the bull and bear case on NVDA's China revenue concentration?"
+    as_of: 2024-12-31
+    expected_topics:
+      - "China"
+      - "export"
+      - "revenue"
+    notes: |
+      Two-sided question, should exercise both the fundamentals and risk
+      specialists. Bull case typically rests on Data Center / margin
+      strength; bear case on export controls.
+
+  - id: aapl-services-2025-q1
+    query: "How sustainable is AAPL's Services growth into FY25?"
+    as_of: 2025-03-31
+    expected_topics:
+      - "Services"
+      - "gross margin"
+    notes: |
+      Mostly fundamentals — MD&A and segment-reporting flavour. Risk
+      specialist may not have much to add.
+
+  - id: msft-azure-2024-q3
+    query: "Is MSFT's Azure growth re-accelerating or decelerating?"
+    as_of: 2024-09-30
+    expected_topics:
+      - "Azure"
+      - "growth"
+    notes: |
+      Triggers fundamentals; tests whether the synthesizer can produce
+      a clear single-direction answer when the evidence supports one.
+
+  - id: nvda-risk-only-2024
+    query: "What are NVDA's most material regulatory and geopolitical risks?"
+    as_of: 2024-12-31
+    expected_topics:
+      - "export control"
+      - "China"
+      - "Item 1A"
+    notes: |
+      Risk-only by intent — the router should plausibly call out the
+      risk specialist as primary. With the safety-net rule the
+      fundamentals specialist still runs, but the bull case may be
+      short or empty.
