@@ -5,12 +5,18 @@ Usage:
     LLM_BACKEND=anthropic ANTHROPIC_API_KEY=sk-ant-... \
         uv run python scripts/eval.py \
             --golden-set evals/golden_set.yaml \
+            --thresholds evals/thresholds.yaml \
             --out evals/report.json
 
 Wires the production research graph (HybridSearch + LLM factory)
 behind the same runner that the unit tests exercise with stubs. The
 output is a JSON report with per-case metrics and an aggregate
 summary.
+
+When ``--thresholds`` is supplied, each aggregate metric is checked
+against its bound. Any violation prints to stderr and the CLI exits
+non-zero. Without thresholds, the CLI only fails when a case raised
+an exception during graph invocation.
 
 With the default ``LLM_BACKEND=echo`` every case will return an empty
 thesis (echo can't produce structured JSON), so the report is only
@@ -36,7 +42,13 @@ from alphamind.agents import build_research_graph
 from alphamind.agents.state import Source
 from alphamind.config import get_settings
 from alphamind.db.session import dispose_engine, session_scope
-from alphamind.eval import load_golden_set, run_eval
+from alphamind.eval import (
+    ThresholdViolation,
+    evaluate_thresholds,
+    load_golden_set,
+    load_thresholds,
+    run_eval,
+)
 from alphamind.eval.types import EvalReport
 from alphamind.llm.factory import get_llm_client
 from alphamind.models.filing import Filing
@@ -68,6 +80,15 @@ def parse_args() -> argparse.Namespace:
         type=int,
         default=8,
         help="Top-k retrieval depth per specialist (default: 8).",
+    )
+    parser.add_argument(
+        "--thresholds",
+        type=Path,
+        default=None,
+        help=(
+            "Optional thresholds YAML. When set, the CLI exits non-zero "
+            "on any aggregate metric outside its bound."
+        ),
     )
     return parser.parse_args()
 
@@ -150,11 +171,31 @@ def _print_summary(report: EvalReport) -> None:
     print(f"  cases failed: {report.n_failed}")
 
 
+def _print_violations(violations: list[ThresholdViolation]) -> None:
+    print()
+    print("Threshold check")
+    print("---------------")
+    if not violations:
+        print("  all thresholds met.")
+        return
+    for v in violations:
+        print(f"  ✗ {v.message()}", file=sys.stderr)
+
+
 async def _run(args: argparse.Namespace) -> int:
     _configure_logging()
 
     cases = load_golden_set(args.golden_set)
     logger.info("loaded %d eval case(s) from %s", len(cases), args.golden_set)
+
+    thresholds = None
+    if args.thresholds is not None:
+        thresholds = load_thresholds(args.thresholds)
+        logger.info(
+            "loaded %d threshold(s) from %s",
+            len(thresholds),
+            args.thresholds,
+        )
 
     embedder = get_embedder()
     reranker = get_reranker()
@@ -170,7 +211,17 @@ async def _run(args: argparse.Namespace) -> int:
     logger.info("wrote eval report → %s", args.out)
 
     _print_summary(report)
-    return 0 if report.n_failed == 0 else 1
+
+    violations: list[ThresholdViolation] = []
+    if thresholds is not None:
+        violations = evaluate_thresholds(report, thresholds)
+        _print_violations(violations)
+
+    if report.n_failed > 0:
+        return 1
+    if violations:
+        return 2
+    return 0
 
 
 def main() -> None:

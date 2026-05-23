@@ -29,6 +29,13 @@ from alphamind.eval.metrics import (
     topic_recall,
 )
 from alphamind.eval.runner import run_eval
+from alphamind.eval.thresholds import (
+    Threshold,
+    ThresholdsError,
+    ThresholdViolation,
+    evaluate_thresholds,
+    load_thresholds,
+)
 from alphamind.eval.types import CaseResult, EvalCase, EvalReport, MetricSummary
 
 __all__ = [
@@ -36,12 +43,17 @@ __all__ = [
     "EvalCase",
     "EvalReport",
     "MetricSummary",
+    "Threshold",
+    "ThresholdViolation",
+    "ThresholdsError",
     "chunk_recall",
     "citation_coverage",
     "citation_validity",
     "contradiction_rate",
+    "evaluate_thresholds",
     "hallucination_rate",
     "load_golden_set",
+    "load_thresholds",
     "run_eval",
     "topic_recall",
 ]

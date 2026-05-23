@@ -103,11 +103,36 @@ run cases 4–50 and report which one broke. Aborting on the first
 failure would mean every regression run loses signal on the cases
 downstream of the first.
 
+### Thresholds (added 2026-05-22)
+
+The first iteration of this ADR shipped the harness as a thermometer
+only. A follow-up adds threshold gating: `evals/thresholds.yaml`
+pins one bound (`minimum` or `maximum`, never both) per metric, the
+CLI takes `--thresholds`, and the exit code becomes:
+
+| Condition | Exit code |
+| --- | --- |
+| At least one case raised during graph invocation | 1 |
+| No case raised, but at least one threshold violated | 2 |
+| Clean run | 0 |
+
+The check is over the aggregate (mean across cases), not per-case.
+Per-case spikes are interesting but noisier; the aggregate is what
+CI gates on. A threshold whose metric has `n == 0` (no case supplied
+the hint it depends on) is *skipped*, not failed.
+
+Two-sided gates aren't supported. Every metric in the harness is
+one-sided by intent — coverage / recall / validity want high
+numbers, hallucination / contradiction rates want low — so the
+loader rejects an entry that sets both `minimum` and `maximum`.
+
+The shipped defaults are conservative on the noisier metrics (the
+two critic-driven rates) and strict on the structural one
+(`citation_validity` minimum=1.0). We'll tighten as the harness
+gets more runs and the natural variance is visible.
+
 ## What's not covered yet
 
-- **Pass/fail gates.** No threshold-based exit codes. The CLI returns
-  0 when no case raised and 1 otherwise. Adding a thresholds file is
-  a separate, opinionated call.
 - **Historical backtest.** The README mentions an SPY backtest as
   part of Phase 6. That's a separate harness — it scores *trading
   decisions* over time, not *answer quality* on a fixed set of
