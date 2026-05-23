@@ -28,3 +28,6 @@ An ADR starts in `proposed` status, moves to `accepted` when merged, and may lat
 - [0004 — Storage layer for filing bodies](0004-storage-layer-for-filing-bodies.md)
 - [0005 — Retrieval pipeline: chunker, embedder, hybrid search](0005-retrieval-pipeline-design.md)
 - [0006 — LLM provider integration](0006-llm-provider-integration.md)
+- [0007 — Agent team design](0007-agent-team-design.md)
+- [0008 — Eval harness design](0008-eval-harness-design.md)
+- [0009 — FastAPI serving + Server-Sent Events](0009-fastapi-serving-and-sse.md)

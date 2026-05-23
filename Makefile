@@ -1,7 +1,7 @@
 .DEFAULT_GOAL := help
 .PHONY: help install dev lint format typecheck test test-integration test-cov test-all \
 	ci clean compose-up compose-down compose-logs \
-	migrate migration downgrade db-reset healthcheck eval
+	migrate migration downgrade db-reset healthcheck eval serve
 
 UV := uv
 
@@ -81,3 +81,6 @@ eval: ## Run the agent eval harness against the golden set
 		--golden-set evals/golden_set.yaml \
 		--thresholds evals/thresholds.yaml \
 		--out evals/report.json
+
+serve: ## Run the FastAPI app locally with autoreload
+	$(UV) run uvicorn --factory alphamind.api.app:create_app --reload --host 0.0.0.0 --port 8000

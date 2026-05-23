@@ -33,6 +33,9 @@ dependencies = [
     "langgraph>=0.2",
     "langchain-core>=0.3",
     "pyyaml>=6.0",
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+    "sse-starlette>=2.1",
 ]
 
 [project.optional-dependencies]
