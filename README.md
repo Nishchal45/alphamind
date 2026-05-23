@@ -125,7 +125,7 @@ This walks [`evals/golden_set.yaml`](evals/golden_set.yaml), runs each case thro
 - [x] Phase 2 — filing-body ingestion, finance-aware chunking, embeddings, hybrid retrieval (BM25 + pgvector + RRF + cross-encoder rerank) with a hard time-horizon filter at every stage
 - [~] Phase 3 — LLM provider integration (Anthropic adapter shipped), real sentence-transformer embedder + cross-encoder rerank shipped, LangGraph agent team partly shipped: router + fundamentals + risk specialists running in parallel + synthesizer + critic via [`scripts/research.py`](scripts/research.py); sentiment + technical specialists still to land
 - [ ] Phase 4 — fine-tuned SLM on financial text (LoRA / QLoRA)
-- [ ] Phase 5 — FastAPI serving layer with streaming, caching, cost routing
+- [~] Phase 5 — FastAPI serving layer partly shipped: `POST /research` streams agent-graph progress as Server-Sent Events via [`alphamind.api`](src/alphamind/api/); token-level streaming of the synthesizer answer, Redis caching, and cost routing still to land
 - [~] Phase 6 — evaluation harness partly shipped: golden set + citation / hallucination / topic / chunk-recall metrics via [`scripts/eval.py`](scripts/eval.py); historical SPY backtest and public dashboard still to land
 
 ## Disclaimer
