@@ -2,24 +2,28 @@
 
 The first end-to-end run of the Phase 3 agent team. Same retrieval +
 LLM building blocks as `scripts/ask.py`, but the answer is produced
-by a LangGraph DAG: router → fundamentals specialist → synthesizer →
-critic. Output is a structured bull / bear thesis with chunk-level
-citations and a critic pass over the result.
+by a LangGraph DAG: router → (fundamentals + risk in parallel) →
+synthesizer → critic. Output is a structured bull / bear thesis with
+chunk-level citations and a critic pass over the result.
 
 ## What it does
 
 ```
 question + as-of date  →
     router          (classifies intent, picks specialists)        →
-    fundamentals    (HybridSearch + structured findings)          →
+    ┬── fundamentals (HybridSearch + structured findings)  ──┐
+    └── risk         (HybridSearch + risk-factor findings)  ──┤
+                                                              ↓
     synthesizer     (merges findings into bull / bear claims)     →
     critic          (flags unsupported claims and contradictions) →
     stdout: intent · thesis · critique · sources · token usage
 ```
 
-The router currently records a broader intent than the graph can
-act on — only the fundamentals specialist is wired today. Sentiment,
-technical, and risk specialists land in follow-up PRs.
+The fundamentals + risk specialists run in parallel and fan in at the
+synthesizer. The router picks which specialists fire, with the caveat
+that `fundamentals` always runs as a safety net even if the router
+omits it. Sentiment and technical specialists land once their upstream
+ingestion (earnings transcripts, market data) is in place.
 
 ## Prerequisites
 
@@ -105,10 +109,14 @@ Usage
 -----
   router        claude-sonnet-4-5  in=512  out=124
   fundamentals  claude-sonnet-4-5  in=4123 out=512
+  risk          claude-sonnet-4-5  in=4123 out=487
   synthesizer   claude-sonnet-4-5  in=1042 out=287
   critic        claude-sonnet-4-5  in=4501 out=145
-  total         —  in=10178 out=1068
+  total         —  in=14301 out=1555
 ```
+
+`fundamentals` and `risk` run in parallel so wall time tracks the
+slower of the two, not the sum.
 
 Citation IDs in the bull/bear/critique blocks are chunk IDs from the
 `Sources` table — follow them back to verify what's actually supported.
