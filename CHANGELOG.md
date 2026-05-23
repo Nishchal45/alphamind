@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file. The format 
 ## [Unreleased]
 
 ### Added
+- `alphamind.agents` package: LangGraph-orchestrated research DAG with four nodes — a router that classifies intent into the fundamentals / sentiment / technical / risk taxonomy, a fundamentals specialist that runs `HybridSearch` and emits 3-7 structured findings with chunk-level citations, a synthesizer that merges findings into a bull / bear thesis, and a critic that flags unsupported claims and contradictions against the source pool. State (`ResearchState`) is a typed `TypedDict` with per-field reducers; accumulators (`sources`, `findings`, `usage`) concatenate across nodes.
+- Citation invariant enforced at three layers: the specialist drops findings citing chunk ids not in its source pool; the synthesizer drops claims citing chunk ids not in the union of finding citations; the critic does the semantic pass over what's left. The structural checks are deterministic; the critic is the only LLM-judgement step.
+- `langgraph` and `langchain-core` added to `dependencies`. The compiled graph is built by `build_research_graph(llm=..., retrieve=...)`, parameterised on the `LLMClient` Protocol and a `RetrievalFn` callable so the DAG can be tested end-to-end without a database.
+- `scripts/research.py` — Phase 3 end-to-end CLI: `--query`, `--as-of`, `--top-k`. Prints router intent, bull/bear thesis with chunk citations, critic issues, source pool, and per-node token usage. Wires `HybridSearch` + Gemini embedder + cross-encoder reranker behind the agent graph.
+- ADR 0007 documenting the agent-team design: LangGraph choice, vertical-slice scope, citation invariant, and what's deferred (sentiment/technical/risk specialists, fan-out, tool-calling retrieval, streaming, tracing).
+- Runbook `docs/runbooks/research.md` covering CLI usage, output format, and failure modes.
+
 - Initial repository scaffolding: license, README, src-layout package.
 - Python tooling with ruff, mypy (strict), pytest, pre-commit, and a uv-based workflow.
 - GitHub Actions CI pipeline for lint, typecheck, and test across Python 3.11 and 3.12.
@@ -50,5 +57,6 @@ All notable changes to this project will be documented in this file. The format 
 ### Changed
 - `EdgarClient` no longer sends a fixed `Accept: application/json` header — the same client now hits both JSON endpoints under `data.sec.gov` and HTML/XML bodies under `www.sec.gov/Archives`.
 - README roadmap: Phase 2 is now complete (chunker, embeddings, hybrid retrieval, cross-encoder rerank).
+- README roadmap: Phase 3 marked partial — router + fundamentals specialist + synthesizer + critic shipped; sentiment / technical / risk specialists still to land.
 
 [Unreleased]: https://github.com/Nishchal45/alphamind/compare/HEAD...HEAD
