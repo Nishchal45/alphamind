@@ -26,6 +26,7 @@ from collections.abc import Awaitable, Callable, Sequence
 from typing import Any
 
 from alphamind.agents._json import extract_json_object
+from alphamind.agents._sources import dedupe_sources
 from alphamind.agents.prompts import CRITIC_SYSTEM
 from alphamind.agents.state import (
     Critique,
@@ -109,7 +110,7 @@ def make_critic_node(
                 "usage": [],
             }
 
-        sources = list(state.get("sources", []))
+        sources = dedupe_sources(state.get("sources", []))
         if not sources:
             return {
                 "critique": Critique(
