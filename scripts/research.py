@@ -37,6 +37,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from alphamind.agents import build_research_graph
+from alphamind.agents._sources import dedupe_sources
 from alphamind.agents.state import Source, Thesis
 from alphamind.config import get_settings
 from alphamind.db.session import dispose_engine, session_scope
@@ -254,7 +255,7 @@ async def _run(args: argparse.Namespace) -> int:
 
     _print_thesis(thesis)
     _print_critique(result)
-    _print_sources(list(result.get("sources", [])))
+    _print_sources(dedupe_sources(result.get("sources", [])))
     _print_usage(result)
     return 0
 

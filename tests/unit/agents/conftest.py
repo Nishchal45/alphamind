@@ -59,6 +59,58 @@ class ScriptedLLMClient:
         )
 
 
+@dataclass
+class SystemKeyedLLMClient:
+    """LLM client that selects its response by a substring of the system prompt.
+
+    Useful for tests where multiple nodes (specialists running in
+    parallel under LangGraph) may call ``complete`` in non-deterministic
+    order. The :class:`ScriptedLLMClient` queue gets the wrong response
+    to the wrong node if the order changes; this stub keys on the
+    system prompt instead so the test stays stable.
+
+    ``responses_by_marker`` maps a substring (e.g. ``"risk specialist"``)
+    to the canned response to return when the request's ``system``
+    argument contains that substring. The first match wins.
+    """
+
+    responses_by_marker: dict[str, str] = field(default_factory=dict)
+    default_response: str = "{}"
+    default_model: str = "system-keyed-stub-1"
+    calls: list[dict[str, Any]] = field(default_factory=list)
+
+    async def complete(
+        self,
+        messages: Sequence[Message],
+        *,
+        model: str | None = None,
+        max_tokens: int = 1024,
+        temperature: float = 0.0,
+        system: str | None = None,
+    ) -> LLMResponse:
+        self.calls.append(
+            {
+                "messages": list(messages),
+                "model": model,
+                "max_tokens": max_tokens,
+                "temperature": temperature,
+                "system": system,
+            }
+        )
+        content = self.default_response
+        for marker, response in self.responses_by_marker.items():
+            if system is not None and marker in system:
+                content = response
+                break
+        return LLMResponse(
+            content=content,
+            model=model or self.default_model,
+            input_tokens=sum(len(m.content) for m in messages) // 4,
+            output_tokens=len(content) // 4,
+            stop_reason="end_turn",
+        )
+
+
 @pytest.fixture
 def sample_sources() -> list[Source]:
     """A small canned source pool — three chunks, one filing each."""

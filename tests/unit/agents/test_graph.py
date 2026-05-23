@@ -9,7 +9,7 @@ import pytest
 
 from alphamind.agents import build_research_graph
 from alphamind.agents.state import Source
-from tests.unit.agents.conftest import ScriptedLLMClient
+from tests.unit.agents.conftest import ScriptedLLMClient, SystemKeyedLLMClient
 
 pytestmark = pytest.mark.asyncio
 
@@ -117,3 +117,126 @@ async def test_dag_survives_dud_router_response(sample_sources: list[Source]) ->
 
     assert result["intent"].rationale == "parse_failure"
     assert len(result["thesis"].bull_case) == 1
+
+
+async def test_dag_fans_out_to_both_specialists(sample_sources: list[Source]) -> None:
+    """Router asking for both specialists should fire both in parallel and fan in at synth."""
+
+    router_resp = json.dumps(
+        {
+            "primary": "risk",
+            "specialists": ["fundamentals", "risk"],
+            "rationale": "Question covers both revenue mix and regulatory exposure.",
+        }
+    )
+    # Same response shape for both specialists; only the binding system
+    # prompt determines which one this canned reply belongs to. Each
+    # node tags its own findings with its specialist name.
+    fundamentals_resp = json.dumps(
+        {
+            "findings": [
+                {"claim": "Gross margin reached 73%.", "cited_chunk_ids": [102]},
+            ]
+        }
+    )
+    risk_resp = json.dumps(
+        {
+            "findings": [
+                {
+                    "claim": "Export controls could materially impact China sales.",
+                    "cited_chunk_ids": [103],
+                },
+            ]
+        }
+    )
+    synthesizer_resp = json.dumps(
+        {
+            "summary": "Margins strong; geopolitical risk is the dominant downside.",
+            "bull_case": [
+                {"claim": "Gross margin expanded.", "cited_chunk_ids": [102]},
+            ],
+            "bear_case": [
+                {"claim": "Export-control risk to China revenue.", "cited_chunk_ids": [103]},
+            ],
+        }
+    )
+    critic_resp = json.dumps({"issues": []})
+
+    client = SystemKeyedLLMClient(
+        responses_by_marker={
+            "routing layer": router_resp,
+            "fundamentals specialist": fundamentals_resp,
+            "risk specialist": risk_resp,
+            "synthesizer": synthesizer_resp,
+            "critic": critic_resp,
+        }
+    )
+
+    async def retrieve(*, query: str, as_of: date, top_k: int) -> list[Source]:
+        return sample_sources
+
+    graph = build_research_graph(llm=client, retrieve=retrieve)
+    result = await graph.ainvoke(
+        {
+            "query": "Bull / bear on NVDA given China exposure?",
+            "as_of": date(2024, 12, 31),
+            "top_k": 3,
+        }
+    )
+
+    specialists_seen = {f.specialist for f in result["findings"]}
+    assert specialists_seen == {"fundamentals", "risk"}
+
+    nodes_in_usage = {u.node for u in result["usage"]}
+    assert nodes_in_usage == {"router", "fundamentals", "risk", "synthesizer", "critic"}
+
+    # Both bull and bear sides land; each cites its expected specialist's chunk.
+    assert result["thesis"].bull_case[0].cited_chunk_ids == (102,)
+    assert result["thesis"].bear_case[0].cited_chunk_ids == (103,)
+
+
+async def test_router_omitting_fundamentals_still_runs_it(
+    sample_sources: list[Source],
+) -> None:
+    """The graph should force fundamentals into the fan-out as a safety net."""
+
+    router_resp = json.dumps(
+        {
+            "primary": "risk",
+            "specialists": ["risk"],  # router intentionally omits fundamentals
+            "rationale": "Risk-only question.",
+        }
+    )
+    fundamentals_resp = json.dumps(
+        {"findings": [{"claim": "fund finding", "cited_chunk_ids": [101]}]}
+    )
+    risk_resp = json.dumps({"findings": [{"claim": "risk finding", "cited_chunk_ids": [103]}]})
+    synthesizer_resp = json.dumps(
+        {
+            "summary": "ok",
+            "bull_case": [{"claim": "b", "cited_chunk_ids": [101]}],
+            "bear_case": [{"claim": "r", "cited_chunk_ids": [103]}],
+        }
+    )
+    critic_resp = json.dumps({"issues": []})
+
+    client = SystemKeyedLLMClient(
+        responses_by_marker={
+            "routing layer": router_resp,
+            "fundamentals specialist": fundamentals_resp,
+            "risk specialist": risk_resp,
+            "synthesizer": synthesizer_resp,
+            "critic": critic_resp,
+        }
+    )
+
+    async def retrieve(*, query: str, as_of: date, top_k: int) -> list[Source]:
+        return sample_sources
+
+    graph = build_research_graph(llm=client, retrieve=retrieve)
+    result = await graph.ainvoke(
+        {"query": "Risk only please", "as_of": date(2024, 12, 31), "top_k": 3}
+    )
+
+    specialists_seen = {f.specialist for f in result["findings"]}
+    assert specialists_seen == {"fundamentals", "risk"}

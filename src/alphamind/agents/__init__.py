@@ -20,6 +20,7 @@ DAG can be tested without a database or a real model.
 
 from __future__ import annotations
 
+from alphamind.agents._sources import dedupe_sources
 from alphamind.agents.graph import RetrievalFn, build_research_graph
 from alphamind.agents.state import (
     Critique,
@@ -43,4 +44,5 @@ __all__ = [
     "ThesisClaim",
     "Usage",
     "build_research_graph",
+    "dedupe_sources",
 ]
