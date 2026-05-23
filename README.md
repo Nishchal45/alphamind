@@ -109,6 +109,16 @@ LLM_BACKEND=anthropic ANTHROPIC_API_KEY=sk-ant-... \
 
 The output is a structured bull / bear thesis with chunk-level citations, the critic's flagged issues, the source pool, and per-node token usage. Operational details in [`docs/runbooks/research.md`](docs/runbooks/research.md).
 
+### Evaluating the agent team
+
+Phase 6's first slice ships an in-repo eval harness — a YAML golden set and six metrics (citation coverage, citation validity, hallucination rate, contradiction rate, topic recall, chunk recall):
+
+```bash
+LLM_BACKEND=anthropic ANTHROPIC_API_KEY=sk-ant-... make eval
+```
+
+This walks [`evals/golden_set.yaml`](evals/golden_set.yaml), runs each case through the agent DAG, and writes a JSON report to `evals/report.json`. The harness measures; it doesn't gate. Operational details in [`docs/runbooks/eval.md`](docs/runbooks/eval.md).
+
 ## Roadmap
 
 - [x] Phase 1 — repo scaffolding, Postgres + pgvector, SEC EDGAR metadata ingestion
@@ -116,7 +126,7 @@ The output is a structured bull / bear thesis with chunk-level citations, the cr
 - [~] Phase 3 — LLM provider integration (Anthropic adapter shipped), real sentence-transformer embedder + cross-encoder rerank shipped, LangGraph agent team partly shipped: router + fundamentals + risk specialists running in parallel + synthesizer + critic via [`scripts/research.py`](scripts/research.py); sentiment + technical specialists still to land
 - [ ] Phase 4 — fine-tuned SLM on financial text (LoRA / QLoRA)
 - [ ] Phase 5 — FastAPI serving layer with streaming, caching, cost routing
-- [ ] Phase 6 — backtest harness, evaluation set, public result dashboard
+- [~] Phase 6 — evaluation harness partly shipped: golden set + citation / hallucination / topic / chunk-recall metrics via [`scripts/eval.py`](scripts/eval.py); historical SPY backtest and public dashboard still to land
 
 ## Disclaimer
 
