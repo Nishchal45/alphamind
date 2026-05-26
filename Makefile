@@ -1,7 +1,7 @@
 .DEFAULT_GOAL := help
 .PHONY: help install dev lint format typecheck test test-integration test-cov test-all \
 	ci clean compose-up compose-down compose-logs \
-	migrate migration downgrade db-reset healthcheck eval
+	migrate migration downgrade db-reset healthcheck eval api
 
 UV := uv
 
@@ -81,3 +81,6 @@ eval: ## Run the agent eval harness against the golden set
 		--golden-set evals/golden_set.yaml \
 		--thresholds evals/thresholds.yaml \
 		--out evals/report.json
+
+api: ## Run the FastAPI server (loopback only; configure API_HOST/API_PORT)
+	$(UV) run uvicorn alphamind.api.app:app --host $${API_HOST:-127.0.0.1} --port $${API_PORT:-8000}
