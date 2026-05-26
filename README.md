@@ -109,6 +109,19 @@ LLM_BACKEND=anthropic ANTHROPIC_API_KEY=sk-ant-... \
 
 The output is a structured bull / bear thesis with chunk-level citations, the critic's flagged issues, the source pool, and per-node token usage. Operational details in [`docs/runbooks/research.md`](docs/runbooks/research.md).
 
+### Running the API
+
+The same agent DAG behind an HTTP surface, streaming one Server-Sent Event per node:
+
+```bash
+make api   # serves on 127.0.0.1:8000
+curl -N -X POST http://127.0.0.1:8000/research \
+  -H 'Content-Type: application/json' \
+  -d '{"query": "What is NVDA saying about China revenue?", "as_of": "2024-12-31"}'
+```
+
+Each `node` event carries the partial state the corresponding agent just produced; a terminal `done` event closes the stream cleanly (or `error` if anything raised). `GET /healthz` is the liveness probe; `GET /docs` is the auto-generated OpenAPI UI. Operational details in [`docs/runbooks/api.md`](docs/runbooks/api.md); design in [ADR 0009](docs/adr/0009-api-serving-layer.md).
+
 ### Evaluating the agent team
 
 Phase 6's first slice ships an in-repo eval harness — a YAML golden set and six metrics (citation coverage, citation validity, hallucination rate, contradiction rate, topic recall, chunk recall):
@@ -125,7 +138,7 @@ This walks [`evals/golden_set.yaml`](evals/golden_set.yaml), runs each case thro
 - [x] Phase 2 — filing-body ingestion, finance-aware chunking, embeddings, hybrid retrieval (BM25 + pgvector + RRF + cross-encoder rerank) with a hard time-horizon filter at every stage
 - [~] Phase 3 — LLM provider integration (Anthropic adapter shipped), real sentence-transformer embedder + cross-encoder rerank shipped, LangGraph agent team partly shipped: router + fundamentals + risk specialists running in parallel + synthesizer + critic via [`scripts/research.py`](scripts/research.py); sentiment + technical specialists still to land
 - [ ] Phase 4 — fine-tuned SLM on financial text (LoRA / QLoRA)
-- [ ] Phase 5 — FastAPI serving layer with streaming, caching, cost routing
+- [~] Phase 5 — FastAPI serving layer partly shipped: `POST /research` streams the agent DAG as Server-Sent Events via [`alphamind.api`](src/alphamind/api); auth, token-level streaming, cost routing, and a deployed instance still to land
 - [~] Phase 6 — evaluation harness partly shipped: golden set + citation / hallucination / topic / chunk-recall metrics via [`scripts/eval.py`](scripts/eval.py); historical SPY backtest and public dashboard still to land
 
 ## Disclaimer

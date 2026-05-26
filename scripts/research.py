@@ -30,23 +30,18 @@ import argparse
 import asyncio
 import logging
 import sys
-from datetime import date, datetime
+from datetime import datetime
 from typing import Any
-
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from alphamind.agents import build_research_graph
 from alphamind.agents._sources import dedupe_sources
+from alphamind.agents.retrieval import build_filing_retrieval_fn
 from alphamind.agents.state import Source, Thesis
 from alphamind.config import get_settings
-from alphamind.db.session import dispose_engine, session_scope
+from alphamind.db.session import dispose_engine
 from alphamind.llm.factory import get_llm_client
-from alphamind.models.filing import Filing
-from alphamind.models.filing_chunk import FilingChunk
 from alphamind.retrieval.embeddings.factory import dispose_embedder, get_embedder
 from alphamind.retrieval.search import HybridSearch, get_reranker
-from sqlalchemy import select
 
 logger = logging.getLogger("alphamind.research")
 
@@ -77,77 +72,6 @@ def _configure_logging() -> None:
         format="%(asctime)s %(levelname)-7s %(name)s: %(message)s",
         datefmt="%H:%M:%S",
     )
-
-
-async def _hydrate(
-    session: AsyncSession,
-    chunk_ids: list[int],
-    *,
-    as_of: date,
-) -> dict[int, tuple[str, str]]:
-    """Look up ``(ticker, form)`` for every chunk id.
-
-    Returns a dict keyed by chunk_id so the retrieval-fn can stitch
-    metadata back onto each :class:`Source` without round-tripping per
-    chunk. ``ticker`` falls back to the CIK string when null so the
-    citation header is never empty.
-    """
-    if not chunk_ids:
-        return {}
-    stmt = (
-        select(FilingChunk)
-        .where(FilingChunk.id.in_(chunk_ids))
-        .where(FilingChunk.filing_date <= as_of)
-        .options(selectinload(FilingChunk.filing).selectinload(Filing.company))
-    )
-    rows = (await session.execute(stmt)).scalars().all()
-    out: dict[int, tuple[str, str]] = {}
-    for row in rows:
-        ticker = row.filing.company.ticker or row.filing.company.cik
-        out[row.id] = (ticker, row.filing.form)
-    return out
-
-
-def _build_retrieval_fn(search: HybridSearch) -> Any:
-    """Wire :class:`HybridSearch` into the :data:`RetrievalFn` contract.
-
-    Each invocation opens its own session — the DAG runs nodes
-    sequentially today so this keeps the lifetime simple. When fan-
-    out lands the call sites can share a session by closing over one
-    here instead.
-    """
-
-    async def retrieve(*, query: str, as_of: date, top_k: int) -> list[Source]:
-        async with session_scope() as session:
-            hits = await search.search(
-                session,
-                query=query,
-                as_of=as_of,
-                top_k=top_k,
-            )
-            metadata = await _hydrate(session, [h.chunk_id for h in hits], as_of=as_of)
-
-        sources: list[Source] = []
-        for hit in hits:
-            ticker, form = metadata.get(
-                hit.chunk_id,
-                (str(hit.filing_id), "—"),
-            )
-            sources.append(
-                Source(
-                    chunk_id=hit.chunk_id,
-                    filing_id=hit.filing_id,
-                    ticker=ticker,
-                    form=form,
-                    filing_date=hit.filing_date,
-                    section=hit.section,
-                    text=hit.text,
-                    score=hit.score,
-                )
-            )
-        return sources
-
-    return retrieve
 
 
 def _print_thesis(thesis: Thesis) -> None:
@@ -226,7 +150,7 @@ async def _run(args: argparse.Namespace) -> int:
     embedder = get_embedder()
     reranker = get_reranker()
     search = HybridSearch(embedder=embedder, reranker=reranker)
-    retrieve = _build_retrieval_fn(search)
+    retrieve = build_filing_retrieval_fn(search)
     client = get_llm_client()
 
     graph = build_research_graph(llm=client, retrieve=retrieve)

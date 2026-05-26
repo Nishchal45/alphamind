@@ -128,9 +128,35 @@ class Settings(BaseSettings):
         description="Required when llm_backend='anthropic'. Read from ANTHROPIC_API_KEY.",
     )
 
+    # --- API serving layer ---
+    api_host: str = Field(
+        default="127.0.0.1",
+        description=(
+            "Bind address for the FastAPI app. Defaults to localhost; set to "
+            "'0.0.0.0' to expose the port (use a reverse proxy in production)."
+        ),
+    )
+    api_port: int = Field(
+        default=8000,
+        description="TCP port for the FastAPI app.",
+    )
+    api_cors_origins: str = Field(
+        default="",
+        description=(
+            "Comma-separated list of origins allowed to call the API. Empty "
+            "disables CORS entirely (default; safe for same-origin and CLI "
+            "consumers). Example: 'http://localhost:3000,https://example.com'."
+        ),
+    )
+
     @property
     def is_production(self) -> bool:
         return self.environment == "production"
+
+    @property
+    def cors_origins_list(self) -> list[str]:
+        """Parse :attr:`api_cors_origins` into a clean list."""
+        return [o.strip() for o in self.api_cors_origins.split(",") if o.strip()]
 
 
 @lru_cache(maxsize=1)
