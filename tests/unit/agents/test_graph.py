@@ -195,6 +195,110 @@ async def test_dag_fans_out_to_both_specialists(sample_sources: list[Source]) ->
     assert result["thesis"].bear_case[0].cited_chunk_ids == (103,)
 
 
+async def test_dag_fans_out_to_all_four_specialists(
+    sample_sources: list[Source],
+) -> None:
+    """Router asking for all four specialists should fire all four and fan in at synth."""
+
+    router_resp = json.dumps(
+        {
+            "primary": "fundamentals",
+            "specialists": ["fundamentals", "risk", "sentiment", "technical"],
+            "rationale": "Broad question covering financials, risks, tone, and trends.",
+        }
+    )
+    fundamentals_resp = json.dumps(
+        {
+            "findings": [
+                {"claim": "Gross margin reached 73%.", "cited_chunk_ids": [102]},
+            ]
+        }
+    )
+    risk_resp = json.dumps(
+        {
+            "findings": [
+                {
+                    "claim": "Export controls could materially impact China sales.",
+                    "cited_chunk_ids": [103],
+                },
+            ]
+        }
+    )
+    sentiment_resp = json.dumps(
+        {
+            "findings": [
+                {
+                    "claim": "Hedged language ('could materially impact') around China exposure.",
+                    "cited_chunk_ids": [103],
+                },
+            ]
+        }
+    )
+    technical_resp = json.dumps(
+        {
+            "findings": [
+                {
+                    "claim": "Gross margin expanding as Data Center mix grows.",
+                    "cited_chunk_ids": [102],
+                },
+            ]
+        }
+    )
+    synthesizer_resp = json.dumps(
+        {
+            "summary": "Margins expanding; geopolitical risk is the dominant downside.",
+            "bull_case": [
+                {"claim": "Gross margin expanded.", "cited_chunk_ids": [102]},
+            ],
+            "bear_case": [
+                {"claim": "Export-control risk to China revenue.", "cited_chunk_ids": [103]},
+            ],
+        }
+    )
+    critic_resp = json.dumps({"issues": []})
+
+    client = SystemKeyedLLMClient(
+        responses_by_marker={
+            "routing layer": router_resp,
+            "fundamentals specialist": fundamentals_resp,
+            "risk specialist": risk_resp,
+            "sentiment specialist": sentiment_resp,
+            "technical specialist": technical_resp,
+            "synthesizer": synthesizer_resp,
+            "critic": critic_resp,
+        }
+    )
+
+    async def retrieve(*, query: str, as_of: date, top_k: int) -> list[Source]:
+        return sample_sources
+
+    graph = build_research_graph(llm=client, retrieve=retrieve)
+    result = await graph.ainvoke(
+        {
+            "query": "Full bull / bear on NVDA covering financials, risk, tone, and trends?",
+            "as_of": date(2024, 12, 31),
+            "top_k": 3,
+        }
+    )
+
+    specialists_seen = {f.specialist for f in result["findings"]}
+    assert specialists_seen == {"fundamentals", "risk", "sentiment", "technical"}
+
+    nodes_in_usage = {u.node for u in result["usage"]}
+    assert nodes_in_usage == {
+        "router",
+        "fundamentals",
+        "risk",
+        "sentiment",
+        "technical",
+        "synthesizer",
+        "critic",
+    }
+
+    # Critic accepts a thesis cleanly when all citations are well-formed.
+    assert result["critique"].issues == ()
+
+
 async def test_router_omitting_fundamentals_still_runs_it(
     sample_sources: list[Source],
 ) -> None:

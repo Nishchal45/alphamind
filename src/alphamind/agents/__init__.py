@@ -1,10 +1,18 @@
 """Agent team — the LangGraph DAG that turns a research question into a thesis.
 
-The graph wires four nodes:
+The graph wires seven nodes:
 
 - :mod:`alphamind.agents.router` — classifies intent and selects specialists.
-- :mod:`alphamind.agents.specialists.fundamentals` — retrieves filing
-  evidence and emits structured findings with chunk-level citations.
+- :mod:`alphamind.agents.specialists.fundamentals` — financial-statement,
+  MD&A, and business-description findings.
+- :mod:`alphamind.agents.specialists.risk` — Item 1A, legal-proceedings,
+  market-risk, and going-concern findings.
+- :mod:`alphamind.agents.specialists.sentiment` — tone, hedging,
+  forward-looking-statement signals. Filing-prose substitute until
+  earnings-call transcripts are ingested.
+- :mod:`alphamind.agents.specialists.technical` — quantitative trend
+  signals (growth rates, margin direction, segment trajectories).
+  Filing substitute until market-data ingestion lands.
 - :mod:`alphamind.agents.synthesizer` — merges specialist findings into a
   bull/bear thesis.
 - :mod:`alphamind.agents.critic` — reads the thesis back against the
