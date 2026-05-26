@@ -33,6 +33,9 @@ dependencies = [
     "langgraph>=0.2",
     "langchain-core>=0.3",
     "pyyaml>=6.0",
+    "yfinance>=0.2.40",
+    "matplotlib>=3.9",
+    "pandas>=2.2",
 ]
 
 [project.optional-dependencies]
@@ -142,6 +145,13 @@ ignore_missing_imports = true
 # absent, so mypy without the extra installed should not block — and shipping
 # stubs for torch + transformers is impractical anyway.
 module = "sentence_transformers.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# yfinance and matplotlib ship without ``py.typed``. The backtest layer
+# uses both behind thin adapters so the rest of the codebase stays
+# strictly typed; ignoring missing stubs is scoped to those modules.
+module = ["yfinance.*", "matplotlib.*", "pandas.*"]
 ignore_missing_imports = true
 
 # -----------------------------------------------------------------------------

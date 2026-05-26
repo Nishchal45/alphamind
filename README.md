@@ -119,6 +119,18 @@ LLM_BACKEND=anthropic ANTHROPIC_API_KEY=sk-ant-... make eval
 
 This walks [`evals/golden_set.yaml`](evals/golden_set.yaml), runs each case through the agent DAG, and writes a JSON report to `evals/report.json`. The harness measures; it doesn't gate. Operational details in [`docs/runbooks/eval.md`](docs/runbooks/eval.md).
 
+### Backtesting the agent team
+
+Phase 6's second slice adds a historical backtest harness: it runs the agent DAG at past `as_of` dates against a YAML universe of `(ticker, query, as_of)` cases, extracts a mechanical signal from each thesis, and compares forward returns to SPY:
+
+```bash
+LLM_BACKEND=anthropic ANTHROPIC_API_KEY=sk-ant-... make backtest
+```
+
+Output lands in [`docs/eval/backtest.md`](docs/eval/backtest.md) (human-facing), `evals/backtest_report.json` (machine-readable), and an equity-curve PNG.
+
+This is a **sanity check** that the system's expressed view is correlated with subsequent price action — not a measurement of tradable alpha. The generated report opens with the methodological caveats (no costs, no survivorship adjustment, small sample); design in [ADR 0010](docs/adr/0010-backtest-harness.md), operations in [`docs/runbooks/backtest.md`](docs/runbooks/backtest.md).
+
 ## Roadmap
 
 - [x] Phase 1 — repo scaffolding, Postgres + pgvector, SEC EDGAR metadata ingestion
@@ -126,7 +138,7 @@ This walks [`evals/golden_set.yaml`](evals/golden_set.yaml), runs each case thro
 - [~] Phase 3 — LLM provider integration (Anthropic adapter shipped), real sentence-transformer embedder + cross-encoder rerank shipped, LangGraph agent team partly shipped: router + fundamentals + risk specialists running in parallel + synthesizer + critic via [`scripts/research.py`](scripts/research.py); sentiment + technical specialists still to land
 - [ ] Phase 4 — fine-tuned SLM on financial text (LoRA / QLoRA)
 - [ ] Phase 5 — FastAPI serving layer with streaming, caching, cost routing
-- [~] Phase 6 — evaluation harness partly shipped: golden set + citation / hallucination / topic / chunk-recall metrics via [`scripts/eval.py`](scripts/eval.py); historical SPY backtest and public dashboard still to land
+- [~] Phase 6 — evaluation harness shipped (golden set + citation / hallucination / topic / chunk-recall metrics via [`scripts/eval.py`](scripts/eval.py)) and SPY backtest harness shipped (signal extraction, equity curve, alpha vs SPY via [`scripts/backtest.py`](scripts/backtest.py)); a public dashboard is the remaining piece
 
 ## Disclaimer
 
