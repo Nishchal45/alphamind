@@ -1,7 +1,7 @@
 .DEFAULT_GOAL := help
 .PHONY: help install dev lint format typecheck test test-integration test-cov test-all \
 	ci clean compose-up compose-down compose-logs \
-	migrate migration downgrade db-reset healthcheck eval
+	migrate migration downgrade db-reset healthcheck eval backtest
 
 UV := uv
 
@@ -81,3 +81,10 @@ eval: ## Run the agent eval harness against the golden set
 		--golden-set evals/golden_set.yaml \
 		--thresholds evals/thresholds.yaml \
 		--out evals/report.json
+
+backtest: ## Run the backtest harness against the universe YAML
+	$(UV) run python scripts/backtest.py \
+		--universe evals/backtest_universe.yaml \
+		--report-md docs/eval/backtest.md \
+		--report-json evals/backtest_report.json \
+		--chart docs/eval/backtest_equity.png

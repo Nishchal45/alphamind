@@ -1,0 +1,37 @@
+# Backtest universe for the AlphaMind research DAG.
+#
+# Each case is (case_id, ticker, query, as_of). The runner walks the
+# list, runs the agent graph at the historical as_of, extracts a
+# mechanical signal from the synthesized thesis, and compares forward
+# returns to SPY over the same window. ADR 0010 has the full design;
+# the methodological caveats apply to every result this file produces.
+#
+# Add or replace cases freely. The harness validates this file
+# eagerly: missing fields, bad dates, duplicate case_ids all raise at
+# load time.
+
+horizon_days: 90
+signal_threshold: 0.20
+benchmark_ticker: SPY
+top_k: 8
+
+cases:
+  - case_id: nvda-2023-q3
+    ticker: NVDA
+    query: What is the bull / bear case on NVDA's data-center growth and China revenue exposure?
+    as_of: 2023-09-30
+
+  - case_id: aapl-2023-q4
+    ticker: AAPL
+    query: What is the bull / bear case on AAPL given iPhone unit trends and services margin?
+    as_of: 2023-12-31
+
+  - case_id: msft-2024-q1
+    ticker: MSFT
+    query: What is the bull / bear case on MSFT given Azure growth and the OpenAI relationship?
+    as_of: 2024-03-31
+
+  - case_id: nvda-2024-q1
+    ticker: NVDA
+    query: What is the bull / bear case on NVDA after the data-center revenue inflection?
+    as_of: 2024-03-31
