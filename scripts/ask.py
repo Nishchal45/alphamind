@@ -6,10 +6,12 @@ Usage:
         --query "what is NVDA saying about China revenue concentration?" \
         --as-of 2024-12-31
 
-The script runs a BM25 search over ``filing_chunks`` filtered by the
-as-of date, builds a prompt that lists each retrieved chunk as a
-numbered source, and calls the configured LLM. The model is instructed
-to answer using only the supplied sources and to cite by number.
+The script runs the full hybrid retrieval pipeline over ``filing_chunks``
+filtered by the as-of date — BM25 + dense pgvector ANN, fused with
+Reciprocal Rank Fusion, then re-ranked by the configured reranker — and
+builds a prompt that lists each retrieved chunk as a numbered source.
+The model is instructed to answer using only the supplied sources and
+to cite by number.
 
 Defaults:
 
@@ -18,6 +20,12 @@ Defaults:
   (see ADR 0005). A backtest at horizon 2023-06 that accidentally
   retrieves chunks from 2024 silently produces alpha that didn't
   exist; making ``--as-of`` mandatory turns that footgun off.
+
+The retrieval backends are picked up from settings:
+
+- ``EMBEDDING_BACKEND`` — ``deterministic`` (default, no network) or ``gemini``.
+- ``RERANKER_BACKEND`` — ``deterministic`` (default, no model download)
+  or ``cross_encoder`` (requires the ``rerank`` extra).
 
 To get real answers (not echoes), set:
 
@@ -45,7 +53,9 @@ from alphamind.llm import LLMClientError, SystemMessage, UserMessage
 from alphamind.llm.factory import get_llm_client
 from alphamind.models.filing import Filing
 from alphamind.models.filing_chunk import FilingChunk
-from alphamind.retrieval.search.lexical import lexical_search
+from alphamind.retrieval.embeddings.factory import dispose_embedder, get_embedder
+from alphamind.retrieval.search import HybridSearch
+from alphamind.retrieval.search.reranker_factory import dispose_reranker, get_reranker
 
 logger = logging.getLogger("alphamind.ask")
 
@@ -152,12 +162,14 @@ def _print_sources(chunks: list[FilingChunk]) -> None:
 async def _run(args: argparse.Namespace) -> int:
     _configure_logging()
 
+    hybrid = HybridSearch(embedder=get_embedder(), reranker=get_reranker())
+
     async with session_scope() as session:
-        hits = await lexical_search(
+        hits = await hybrid.search(
             session,
             query=args.query,
             as_of=args.as_of,
-            limit=args.top_k,
+            top_k=args.top_k,
         )
 
     if not hits:
@@ -200,12 +212,27 @@ async def _run(args: argparse.Namespace) -> int:
     return 0
 
 
+async def _shutdown() -> None:
+    """Release process-wide resources in one event loop.
+
+    The embedder may own an httpx client (gemini backend), the reranker
+    may own a loaded model (cross-encoder backend), and the engine owns
+    a connection pool. All three dispose hooks are no-ops if their
+    resource was never constructed, so this is safe regardless of which
+    backends were selected.
+    """
+
+    await dispose_embedder()
+    await dispose_reranker()
+    await dispose_engine()
+
+
 def main() -> None:
     args = parse_args()
     try:
         code = asyncio.run(_run(args))
     finally:
-        asyncio.run(dispose_engine())
+        asyncio.run(_shutdown())
     sys.exit(code)
 
 

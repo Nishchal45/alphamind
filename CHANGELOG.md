@@ -50,5 +50,6 @@ All notable changes to this project will be documented in this file. The format 
 ### Changed
 - `EdgarClient` no longer sends a fixed `Accept: application/json` header — the same client now hits both JSON endpoints under `data.sec.gov` and HTML/XML bodies under `www.sec.gov/Archives`.
 - README roadmap: Phase 2 is now complete (chunker, embeddings, hybrid retrieval, cross-encoder rerank).
+- `scripts/ask.py` now drives retrieval through `HybridSearch` (BM25 + dense pgvector ANN, fused via RRF and reranked) instead of calling `lexical_search` directly, so the demo actually exercises the retrieval stack the project ships. Embedder and reranker are resolved from their factories and disposed cleanly on shutdown. Runbook and README updated to match.
 
 [Unreleased]: https://github.com/Nishchal45/alphamind/compare/HEAD...HEAD

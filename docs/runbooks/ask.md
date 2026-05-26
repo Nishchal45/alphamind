@@ -1,13 +1,15 @@
 # Runbook — `scripts/ask.py`
 
-The first end-to-end demo of the project. Combines BM25 search over
+The first end-to-end demo of the project. Combines the hybrid retrieval
+pipeline (BM25 + dense pgvector ANN, fused via RRF and reranked) over
 already-chunked filings with a real LLM call to produce a cited answer
 to a research question.
 
 ## What it does
 
 ```
-question + as-of date  →  BM25 search over filing_chunks  →
+question + as-of date  →  HybridSearch over filing_chunks  →
+                          (BM25 + pgvector ANN → RRF → rerank → top-k)
                           top-k chunks formatted as numbered sources  →
                           system prompt + cited-source rules  →
                           LLM (Anthropic or echo stub)  →
@@ -86,10 +88,13 @@ of spend.
 - The `--as-of` date is required, not optional. Defaulting it to today
   would silently let lookahead bias creep into historical questions —
   the project's single most important correctness invariant.
-- BM25 retrieval is used (not hybrid). Dense retrieval requires real
-  embeddings, which are still on the deterministic stub. Once the real
-  embedder lands, switching to `HybridSearch` is a one-line change in
-  this script.
+- Retrieval is `HybridSearch`: BM25 and dense pgvector ANN candidates
+  are fused with Reciprocal Rank Fusion and reranked before the top-k
+  reaches the LLM. The embedder and reranker backends are picked up
+  from settings (`EMBEDDING_BACKEND`, `RERANKER_BACKEND`); the default
+  pair (`deterministic` + `deterministic`) requires no model downloads
+  or API keys, so the demo runs out of the box. Switch to `gemini` and
+  `cross_encoder` for production-grade quality.
 - Every printed answer is a synthesis of LLM output. **Verify every
   citation against the source list before quoting it elsewhere.**
   LLM-generated citations have non-zero hallucination rate.

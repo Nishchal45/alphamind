@@ -83,7 +83,7 @@ LLM_BACKEND=anthropic ANTHROPIC_API_KEY=sk-ant-... \
     --as-of 2024-12-31
 ```
 
-This is the first end-to-end demo — BM25 retrieval over your ingested filings + a Claude call that's instructed to answer using only the cited sources. Without an API key set, the default `LLM_BACKEND=echo` returns a stub so the rest of the pipeline can still be exercised. Operational details in [`docs/runbooks/ask.md`](docs/runbooks/ask.md).
+This is the first end-to-end demo — hybrid retrieval (BM25 + pgvector dense ANN, fused with RRF and reranked) over your ingested filings + a Claude call that's instructed to answer using only the cited sources. Without an API key set, the default `LLM_BACKEND=echo` returns a stub so the rest of the pipeline can still be exercised. Operational details in [`docs/runbooks/ask.md`](docs/runbooks/ask.md).
 
 Example output:
 
