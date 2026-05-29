@@ -42,6 +42,25 @@ dependencies = [
 rerank = [
     "sentence-transformers>=3.0",
 ]
+# QLoRA fine-tuning stack (ADR 0011). Heavy (torch + transformers +
+# bitsandbytes) and GPU-oriented; the dataset builder, formatting, and
+# metrics are testable without it, so it stays an opt-in extra.
+# Install with: ``uv sync --extra train``.
+train = [
+    "torch>=2.3",
+    "transformers>=4.44",
+    "peft>=0.12",
+    "trl>=0.10",
+    "datasets>=2.20",
+    "accelerate>=0.33",
+    "bitsandbytes>=0.43",
+]
+# Local model serving via vLLM (ADR 0012). CUDA/Linux-centric and very
+# heavy; imported lazily by LocalLLMClient. Install with:
+# ``uv sync --extra serve-local``.
+serve-local = [
+    "vllm>=0.6",
+]
 
 [dependency-groups]
 dev = [
@@ -142,6 +161,22 @@ ignore_missing_imports = true
 # absent, so mypy without the extra installed should not block — and shipping
 # stubs for torch + transformers is impractical anyway.
 module = "sentence_transformers.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# The training + serving stacks (extras 'train' / 'serve-local') are
+# optional, GPU-oriented, and ship without usable type stubs. The
+# modules that import them (alphamind.training.trainer,
+# alphamind.llm.local) do so lazily and raise a clean error when the
+# extra is absent, so mypy without them installed must not block.
+module = [
+    "torch.*",
+    "transformers.*",
+    "peft.*",
+    "trl.*",
+    "datasets.*",
+    "vllm.*",
+]
 ignore_missing_imports = true
 
 # -----------------------------------------------------------------------------
