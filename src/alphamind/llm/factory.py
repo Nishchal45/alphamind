@@ -29,6 +29,16 @@ def get_llm_client() -> LLMClient:
             default_model=settings.llm_model,
         )
 
+    if backend == "local":
+        # Imported here, not at module top, so the vLLM dependency chain
+        # is only touched when the local backend is actually selected.
+        from alphamind.llm.local import LocalLLMClient  # noqa: PLC0415
+
+        return LocalLLMClient(
+            base_model=settings.slm_base_model,
+            adapter_path=settings.slm_adapter_path,
+        )
+
     raise LLMClientError(f"unsupported llm backend: {backend!r}")
 
 

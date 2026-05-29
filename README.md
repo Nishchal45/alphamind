@@ -119,12 +119,29 @@ LLM_BACKEND=anthropic ANTHROPIC_API_KEY=sk-ant-... make eval
 
 This walks [`evals/golden_set.yaml`](evals/golden_set.yaml), runs each case through the agent DAG, and writes a JSON report to `evals/report.json`. The harness measures; it doesn't gate. Operational details in [`docs/runbooks/eval.md`](docs/runbooks/eval.md).
 
+### Fine-tuning the claim-extraction SLM
+
+Phase 4 ships the pipeline to fine-tune a small open model (Qwen2.5-1.5B-Instruct) for per-chunk claim extraction — the high-volume step the specialists run — so it can move off the frontier model. The flow is: distil a training set from the frontier model (teacher), QLoRA fine-tune, evaluate claim-level precision / recall:
+
+```bash
+# 1. distil a training set (frontier teacher; no GPU)
+LLM_BACKEND=anthropic ANTHROPIC_API_KEY=sk-ant-... make train-data
+
+# 2. fine-tune (GPU; needs `uv sync --extra train`)
+make train-slm
+
+# 3. evaluate the adapter vs. the base model (GPU; needs `uv sync --extra serve-local`)
+LLM_BACKEND=local SLM_ADAPTER_PATH=checkpoints/claim-extractor/adapter make eval-slm
+```
+
+The repo ships the **pipeline** — dataset builder, QLoRA trainer, claim-extraction evaluator, and a vLLM-backed `local` LLM backend — all unit-tested. The trained adapter and its eval numbers are produced by running the GPU steps on your own hardware; the procedure is in [`docs/runbooks/fine-tune.md`](docs/runbooks/fine-tune.md). Design in [ADR 0011](docs/adr/0011-slm-fine-tune.md) and [ADR 0012](docs/adr/0012-local-llm-backend.md).
+
 ## Roadmap
 
 - [x] Phase 1 — repo scaffolding, Postgres + pgvector, SEC EDGAR metadata ingestion
 - [x] Phase 2 — filing-body ingestion, finance-aware chunking, embeddings, hybrid retrieval (BM25 + pgvector + RRF + cross-encoder rerank) with a hard time-horizon filter at every stage
 - [~] Phase 3 — LLM provider integration (Anthropic adapter shipped), real sentence-transformer embedder + cross-encoder rerank shipped, LangGraph agent team partly shipped: router + fundamentals + risk specialists running in parallel + synthesizer + critic via [`scripts/research.py`](scripts/research.py); sentiment + technical specialists still to land
-- [ ] Phase 4 — fine-tuned SLM on financial text (LoRA / QLoRA)
+- [~] Phase 4 — fine-tuned SLM on financial text: the full QLoRA pipeline (distillation dataset builder, trainer, claim-extraction eval) and a vLLM-backed `local` LLM backend are shipped and tested via [`alphamind.training`](src/alphamind/training); running the fine-tune itself is a documented GPU step ([`docs/runbooks/fine-tune.md`](docs/runbooks/fine-tune.md)), and routing the specialists onto the local model is the remaining wiring
 - [ ] Phase 5 — FastAPI serving layer with streaming, caching, cost routing
 - [~] Phase 6 — evaluation harness partly shipped: golden set + citation / hallucination / topic / chunk-recall metrics via [`scripts/eval.py`](scripts/eval.py); historical SPY backtest and public dashboard still to land
 

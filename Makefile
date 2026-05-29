@@ -1,7 +1,8 @@
 .DEFAULT_GOAL := help
 .PHONY: help install dev lint format typecheck test test-integration test-cov test-all \
 	ci clean compose-up compose-down compose-logs \
-	migrate migration downgrade db-reset healthcheck eval
+	migrate migration downgrade db-reset healthcheck eval \
+	train-data train-slm eval-slm
 
 UV := uv
 
@@ -81,3 +82,19 @@ eval: ## Run the agent eval harness against the golden set
 		--golden-set evals/golden_set.yaml \
 		--thresholds evals/thresholds.yaml \
 		--out evals/report.json
+
+train-data: ## Distil a claim-extraction training set from ingested chunks (needs a frontier LLM)
+	$(UV) run python scripts/build_training_set.py \
+		--limit $${LIMIT:-2000} \
+		--out-dir data/training
+
+train-slm: ## Fine-tune the claim-extraction SLM (GPU; needs `uv sync --extra train`)
+	$(UV) run python scripts/train_slm.py \
+		--train data/training/train.jsonl \
+		--val data/training/val.jsonl \
+		--output-dir checkpoints/claim-extractor
+
+eval-slm: ## Evaluate a claim-extraction model on the val set (set LLM_BACKEND + SLM_ADAPTER_PATH)
+	$(UV) run python scripts/eval_slm.py \
+		--val data/training/val.jsonl \
+		--out evals/slm_report.json

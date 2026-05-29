@@ -19,7 +19,7 @@ Environment = Literal["development", "test", "staging", "production"]
 StorageBackend = Literal["local"]
 EmbeddingBackend = Literal["deterministic", "gemini"]
 RerankerBackend = Literal["deterministic", "cross_encoder"]
-LLMBackend = Literal["anthropic", "echo"]
+LLMBackend = Literal["anthropic", "echo", "local"]
 
 
 class Settings(BaseSettings):
@@ -116,7 +116,9 @@ class Settings(BaseSettings):
         description=(
             "LLM backend used by alphamind.llm. 'anthropic' calls the real "
             "API; 'echo' is a deterministic stub that echoes the last user "
-            "message back, useful for offline development and tests."
+            "message back, useful for offline development and tests; 'local' "
+            "serves a Hugging Face model (+ optional LoRA adapter) via vLLM "
+            "and requires the 'serve-local' extra (see ADR 0012)."
         ),
     )
     llm_model: str = Field(
@@ -126,6 +128,23 @@ class Settings(BaseSettings):
     anthropic_api_key: str | None = Field(
         default=None,
         description="Required when llm_backend='anthropic'. Read from ANTHROPIC_API_KEY.",
+    )
+
+    # --- Local model (vLLM) backend ---
+    slm_base_model: str = Field(
+        default="Qwen/Qwen2.5-1.5B-Instruct",
+        description=(
+            "Hugging Face base model id served by llm_backend='local'. Matches "
+            "the fine-tune base in ADR 0011."
+        ),
+    )
+    slm_adapter_path: str | None = Field(
+        default=None,
+        description=(
+            "Filesystem path to the trained LoRA adapter for the local backend. "
+            "Unset serves the base model untuned — useful for a base-vs-fine-tuned "
+            "comparison."
+        ),
     )
 
     @property
